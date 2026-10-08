@@ -6,3 +6,7 @@ docs/agents/
 docs/adr/
 SPEC.md
 GLOSSARY.md
+
+# Payload recorder output (scripts/record-payloads)
+scripts/record-payloads/payloads/
+scripts/record-payloads/errors.log
