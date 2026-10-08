@@ -1,12 +1,13 @@
 import hashlib
 import json
+import time
 from pathlib import Path
 
 import pytest
 from test_hook import rows, run_hook
 
 from attention_triage.normalize import normalize
-from attention_triage.redact import MASK, redact
+from attention_triage.redact import MASK, mask, redact
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
@@ -28,6 +29,8 @@ SECRETS = {
     "pem-cut-off": ("echo '{}", f"-----BEGIN OPENSSH PRIVATE KEY-----\n{PEM_BODY}"),
     "key=value": ("DB_PASSWORD={} ./migrate", "hunter2-correct-horse"),
     "key: value": ('printf \'"api_key": "{}"\' > cfg.json', "abc123def456"),
+    "quoted value": ('PASSWORD="{}" ./run', "correct horse battery staple"),
+    "escaped quotes": ('curl -d "{{\\"password\\": \\"{}\\"}}" https://x', "hunter2xyz"),
 }
 
 
@@ -48,8 +51,23 @@ def test_secrets_are_masked_in_stored_rows(tmp_path, command, secret):
 
 
 def test_values_under_secret_named_keys_are_masked():
-    payload = {"tool_input": {"api_token": "plain-value", "max_tokens": "4096"}}
-    assert redact(payload)["tool_input"] == {"api_token": MASK, "max_tokens": "4096"}
+    payload = {"tool_input": {"api_token": "plain-value", "password": 1234, "max_tokens": 4096}}
+    assert redact(payload)["tool_input"] == {
+        "api_token": MASK,
+        "password": MASK,
+        "max_tokens": 4096,
+    }
+
+
+def test_secrets_in_a_json_dumped_patch_preview_are_masked():
+    patch = [{"lines": ['+  "api_key": "abc123secret",', '+API_KEY="abc123secret"']}]
+    assert "abc123secret" not in redact({"structuredPatch": patch})["structuredPatch"]["preview"]
+
+
+def test_masking_a_long_word_is_fast():
+    start = time.perf_counter()
+    mask("a" * 100_000)
+    assert time.perf_counter() - start < 1
 
 
 @pytest.mark.parametrize("path", ALL_FIXTURES, ids=lambda p: f"{p.parent.name}/{p.name}")

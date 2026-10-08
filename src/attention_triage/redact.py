@@ -26,7 +26,8 @@ CONTENT_KEYS = {
     "hunks",
 }
 
-SECRET_NAME = r"[\w-]*(?:key|secret|token|password|passwd)"
+# Starts at a word start; without the lookbehind a long word takes quadratic time to scan.
+SECRET_NAME = r"(?<![\w-])[\w-]*(?:key|secret|token|password|passwd)"
 SECRET_KEY = re.compile(rf"(?i){SECRET_NAME}$")
 # (pattern, replacement); a replacement starting with \g<1> keeps the label in front of the secret.
 SECRET_PATTERNS = [
@@ -42,8 +43,14 @@ SECRET_PATTERNS = [
         MASK,
     ),
     (re.compile(r"(?i)\b(bearer\s+)[\w.~+/=-]+"), rf"\g<1>{MASK}"),
-    # api_key=..., "password": "...", --token=..., x-api-key: ...
-    (re.compile(rf"(?i)({SECRET_NAME}[\"']?\s*[:=]\s*[\"']?)[^\s\"',;&]+"), rf"\g<1>{MASK}"),
+    # api_key=..., "password": "...", --token=..., x-api-key: ..., and quotes escaped as \" (inside
+    # a quoted command, or a JSON-dumped patch). A quoted value is masked whole, spaces included.
+    (
+        re.compile(
+            rf"(?i)({SECRET_NAME}\\?[\"']?\s*[:=]\s*)(?:\\?\"[^\"]*\"|'[^']*'|[^\s\"'\\,;&]+)"
+        ),
+        rf"\g<1>{MASK}",
+    ),
 ]
 
 
@@ -52,8 +59,10 @@ def redact(value, preview_chars: int = PREVIEW_CHARS, max_chars: int = MAX_CHARS
     long strings are cut. `key` is the dict key `value` sits under."""
     if key in CONTENT_KEYS and value is not None:
         return digest(value, preview_chars)
+    if key and SECRET_KEY.search(key) and value is not None:
+        return MASK
     if isinstance(value, str):
-        return MASK if key and SECRET_KEY.search(key) else cut(mask(value), max_chars)
+        return cut(mask(value), max_chars)
     if isinstance(value, dict):
         return {k: redact(v, preview_chars, max_chars, k) for k, v in value.items()}
     if isinstance(value, list):
