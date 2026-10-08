@@ -1,0 +1,28 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "473b9dbc-50ac-453e-aae1-9b73c4c8493a",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls ~/Desktop",
+    "description": "List files on the Desktop",
+    "dangerouslyDisableSandbox": true
+  },
+  "tool_response": {
+    "stdout": "<redacted: directory listing>",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false,
+    "dangerouslyDisableSandbox": true
+  },
+  "tool_use_id": "toolu_01D9Lhy1UJWM5Aa9hqKyrKxR",
+  "duration_ms": 72
+}

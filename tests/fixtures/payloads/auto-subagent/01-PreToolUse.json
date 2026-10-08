@@ -1,0 +1,19 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "d2cb931c-efcb-47c0-b748-e38372d0ed01",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "List files in project folder",
+    "prompt": "List all files and directories in /Users/alice/Dev/triage-spike (top level, plus contents of any subdirectories except .git internals). Report the list back concisely. Search breadth: quick.",
+    "subagent_type": "Explore"
+  },
+  "tool_use_id": "toolu_01WQ1tFLJaX3vjTM95jiYjpF"
+}

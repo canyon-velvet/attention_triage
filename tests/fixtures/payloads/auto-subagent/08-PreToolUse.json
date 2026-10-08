@@ -1,0 +1,19 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "d2cb931c-efcb-47c0-b748-e38372d0ed01",
+  "permission_mode": "auto",
+  "agent_id": "aaa1ae0a35159e3f1",
+  "agent_type": "Explore",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "SubagentHandback",
+  "tool_input": {
+    "message": "/Users/alice/Dev/triage-spike has almost nothing in it. Apart from .git, whose internals I didn't list as you asked, it holds only these:\n\n- /Users/alice/Dev/triage-spike/notes.txt is a file of 12 bytes.\n- /Users/alice/Dev/triage-spike/.claude/ is a directory with one thing in it:\n  - /Users/alice/Dev/triage-spike/.claude/.cc-writes/ is an empty directory with mode drwx------.\n\nThere is no source code, config or other files, and no settings.json, skills or hooks under .claude."
+  },
+  "tool_use_id": "toolu_01XoazxQALAN82QjrhXgz6Kn"
+}

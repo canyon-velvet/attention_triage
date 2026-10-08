@@ -1,0 +1,21 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "3aec1669-f186-445c-ade7-3864cea324f2",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "touch ~/triage-spike-blocked.txt",
+    "description": "Create empty file in home directory"
+  },
+  "tool_use_id": "toolu_015aYgyDUf2jGHDKFgtfXSPY",
+  "error": "Exit code 1\ntouch: /Users/alice/triage-spike-blocked.txt: Operation not permitted",
+  "is_interrupt": false,
+  "duration_ms": 3456
+}

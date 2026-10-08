@@ -1,0 +1,18 @@
+{
+  "session_id": "9e427e7c-0d3a-4502-afa8-b45912778096",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096/scratchpad",
+  "prompt_id": "232c6313-ec5a-4557-8abf-3825586febd6",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/Users/alice/Dev/triage-spike/notes2.txt",
+    "content": "hello\n"
+  },
+  "tool_use_id": "toolu_01GXKRxPE5HMq9xNMYSmY6ut"
+}

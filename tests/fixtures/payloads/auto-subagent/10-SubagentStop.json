@@ -1,0 +1,26 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "d2cb931c-efcb-47c0-b748-e38372d0ed01",
+  "permission_mode": "auto",
+  "agent_id": "aaa1ae0a35159e3f1",
+  "agent_type": "Explore",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/subagents/agent-aaa1ae0a35159e3f1.jsonl",
+  "background_tasks": [
+    {
+      "id": "aaa1ae0a35159e3f1",
+      "type": "subagent",
+      "status": "running",
+      "description": "List files in project folder",
+      "agent_type": "Explore"
+    }
+  ],
+  "session_crons": []
+}
