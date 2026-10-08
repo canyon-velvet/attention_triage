@@ -1,4 +1,4 @@
-"""triage: install the capture hook in Claude Code's user settings (ADR-0004)."""
+"""triage: install and uninstall the capture hook in Claude Code's user settings (ADR-0004)."""
 
 import argparse
 import copy
@@ -28,8 +28,12 @@ def main(argv: list[str] | None = None) -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     install_parser = commands.add_parser("install", help="add the capture hook to Claude Code")
     install_parser.add_argument("--dry-run", action="store_true", help="show the diff only")
+    commands.add_parser("uninstall", help="remove Triage's hook entries")
     args = parser.parse_args(argv)
-    install(args.dry_run)
+    if args.command == "install":
+        install(args.dry_run)
+    else:
+        uninstall()
 
 
 def install(dry_run: bool) -> None:
@@ -52,6 +56,16 @@ def install(dry_run: bool) -> None:
         print("Installed. Restart running Claude Code sessions to start capturing.")
 
 
+def uninstall() -> None:
+    old_text = read_settings()
+    old = json.loads(old_text or "{}")
+    new = without_ours(old)
+    if new == old:
+        print("Triage's hooks are not installed.")
+    elif save(old_text, new, dry_run=False):
+        print("Uninstalled.")
+
+
 def is_ours(handler: dict) -> bool:
     """Ours = the command runs a program named triage-hook, wherever it was installed from."""
     try:
@@ -63,7 +77,9 @@ def is_ours(handler: dict) -> bool:
 
 def without_ours(settings: dict) -> dict:
     """Copy of settings without Triage's handlers. A group, event or `hooks` key is dropped only
-    when removing ours left it empty, so the user's own structure is kept as it was."""
+    when removing ours left it empty, so install then uninstall gives back the same settings
+    (byte for byte for a file in Claude Code's own 2-space format). One exception: an event list
+    or `hooks` object that was already empty before install is dropped too."""
     settings = copy.deepcopy(settings)
     hooks = settings.get("hooks", {})
     had_hooks = bool(hooks)
