@@ -49,6 +49,9 @@ def install(dry_run: bool) -> None:
             {"matcher": "*", "hooks": [handler]} if event in TOOL_EVENTS else {"hooks": [handler]}
         )
         new.setdefault("hooks", {}).setdefault(event, []).append(group)
+    # Synchronous, because Claude Code ignores async hooks' output (SPEC §7, in-session notice).
+    notice = {"type": "command", "command": f"{shlex.quote(str(hook))} --session-notice"}
+    new["hooks"]["SessionStart"].append({"hooks": [notice]})
     if new == old:
         print("Triage's hooks are already installed.")
     elif save(old_text, new, dry_run):

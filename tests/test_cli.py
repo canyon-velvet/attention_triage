@@ -83,11 +83,13 @@ def test_install_backs_up_then_adds_one_async_entry_per_event(settings, home, mo
     [backup] = backups(settings)
     assert backup.read_bytes() == before
     installed = json.loads(settings.read_text())
+    ours = {
+        event: [h for group in installed["hooks"][event] for h in group["hooks"] if cli.is_ours(h)]
+        for event in EVENTS
+    }
     for event in EVENTS:
-        [handler] = [
-            h for group in installed["hooks"][event] for h in group["hooks"] if cli.is_ours(h)
-        ]
-        assert handler["async"] is True
+        assert [h.get("async") for h in ours[event]] == [True] + [None] * (event == "SessionStart")
+    assert ours["SessionStart"][1]["command"].endswith(" --session-notice")  # sync: output shown
     assert installed["hooks"]["PreToolUse"][0] == USER_SETTINGS["hooks"]["PreToolUse"][0]
     assert installed["model"] == "opus" and installed["permissions"] == USER_SETTINGS["permissions"]
     assert (home / ".attention-triage").is_dir()
