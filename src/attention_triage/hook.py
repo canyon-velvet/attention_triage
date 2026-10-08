@@ -15,10 +15,17 @@ def main() -> None:
     try:
         payload = read_payload()
         event = normalize(redact(payload))
-        with closing(store.connect()) as conn:
-            store.insert_event(conn, event)
-            if issues := check_shape(payload):
-                store.record_drift(conn, text(payload.get("hook_event_name")), issues, event["ts"])
+        try:
+            with closing(store.connect()) as conn:
+                store.ingest_spool(conn)
+                store.insert_event(conn, event)
+                if issues := check_shape(payload):
+                    store.record_drift(
+                        conn, text(payload.get("hook_event_name")), issues, event["ts"]
+                    )
+        except Exception:
+            store.spool(event)  # a delay, not a loss; the error is still logged below
+            raise
     except Exception:
         log_error()
     sys.exit(0)
