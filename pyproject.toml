@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
+triage = "attention_triage.cli:main"
 triage-hook = "attention_triage.hook:main"
 
 [dependency-groups]
