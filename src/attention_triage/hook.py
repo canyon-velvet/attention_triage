@@ -6,14 +6,17 @@ from contextlib import closing
 from datetime import UTC, datetime
 
 from attention_triage import store
-from attention_triage.normalize import normalize
+from attention_triage.normalize import check_shape, normalize, text
 
 
 def main() -> None:
     try:
         payload = read_payload()
+        event = normalize(payload)
         with closing(store.connect()) as conn:
-            store.insert_event(conn, normalize(payload))
+            store.insert_event(conn, event)
+            if issues := check_shape(payload):
+                store.record_drift(conn, text(payload.get("hook_event_name")), issues, event["ts"])
     except Exception:
         log_error()
     sys.exit(0)
