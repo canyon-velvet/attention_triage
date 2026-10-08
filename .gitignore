@@ -1,1 +1,8 @@
-.claude/settings.local.json
+# Claude Code / personal workflow files (kept local, not part of the tool)
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+docs/agents/
+docs/adr/
+SPEC.md
+GLOSSARY.md
