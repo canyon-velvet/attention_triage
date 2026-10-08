@@ -44,10 +44,13 @@ SECRET_PATTERNS = [
     ),
     (re.compile(r"(?i)\b(bearer\s+)[\w.~+/=-]+"), rf"\g<1>{MASK}"),
     # api_key=..., "password": "...", --token=..., x-api-key: ..., and quotes escaped as \" (inside
-    # a quoted command, or a JSON-dumped patch). A quoted value is masked whole, spaces included.
+    # a quoted command, or a JSON-dumped patch). A quoted value is masked whole, spaces included. It
+    # can't start with a space or cross shell syntax, so in `grep "api_key=" f; curl ...; echo "x"`
+    # the quote closing "api_key=" doesn't open a value that hides the rest of the command.
     (
         re.compile(
-            rf"(?i)({SECRET_NAME}\\?[\"']?\s*[:=]\s*)(?:\\?\"[^\"]*\"|'[^']*'|[^\s\"'\\,;&]+)"
+            rf"(?i)({SECRET_NAME}\\?[\"']?\s*[:=]\s*)"
+            r"(?:\\?\"(?!\s)[^\"\n;&|<>`]*\"|'(?!\s)[^'\n;&|<>`]*'|[^\s\"'\\,;&]+)"
         ),
         rf"\g<1>{MASK}",
     ),
