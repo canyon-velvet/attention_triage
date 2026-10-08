@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.scripts]
+triage-hook = "attention_triage.hook:main"
+
 [dependency-groups]
 dev = ["pytest>=8"]
 
