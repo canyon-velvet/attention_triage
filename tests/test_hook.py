@@ -77,3 +77,64 @@ def test_bad_stdin_exits_0_stores_nothing_and_logs(tmp_path, stdin):
     assert run_hook(tmp_path, stdin) == 0
     assert rows(tmp_path) == []
     assert (tmp_path / ".attention-triage" / "hook-errors.log").read_text()
+
+
+def spool_lines(home: Path) -> list[str]:
+    spool = home / ".attention-triage" / "spool.jsonl"
+    return spool.read_text().splitlines() if spool.exists() else []
+
+
+def make_db_unavailable(home: Path) -> Path:
+    """A directory where triage.db should be: sqlite3 can't open it, like a broken DB."""
+    db = home / ".attention-triage" / "triage.db"
+    db.mkdir(parents=True)
+    return db
+
+
+def test_db_unavailable_spools_the_event_logs_and_exits_0(tmp_path):
+    make_db_unavailable(tmp_path)
+    path = FIXTURES / "auto-webfetch" / "01-PreToolUse.json"
+    assert run_hook(tmp_path, path.read_bytes()) == 0
+    [line] = spool_lines(tmp_path)
+    expected = normalize(redact(json.loads(path.read_text())))
+    assert json.loads(line)["dedup_key"] == expected["dedup_key"]
+    assert "OperationalError" in (tmp_path / ".attention-triage" / "hook-errors.log").read_text()
+
+
+def test_next_successful_run_ingests_the_spool_without_duplicates(tmp_path):
+    spooled = (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes()
+    db = make_db_unavailable(tmp_path)
+    run_hook(tmp_path, spooled)
+    run_hook(tmp_path, spooled)  # delivered twice while the DB was down
+    db.rmdir()
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
+    assert len(rows(tmp_path)) == 2 and spool_lines(tmp_path) == []
+    run_hook(tmp_path, spooled)
+    assert len(rows(tmp_path)) == 2
+
+
+def test_a_spool_line_cut_short_is_skipped_not_fatal(tmp_path):
+    db = make_db_unavailable(tmp_path)
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    db.rmdir()
+    spool = tmp_path / ".attention-triage" / "spool.jsonl"
+    spool.write_text('{"agent": "claude-co\n' + spool.read_text())  # a hook killed mid-write
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
+    assert len(rows(tmp_path)) == 2 and spool_lines(tmp_path) == []
+
+
+def test_parallel_hooks_spool_and_ingest_every_event(tmp_path):
+    db = make_db_unavailable(tmp_path)
+    payload = json.loads((FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_text())
+    env = {**os.environ, "HOME": str(tmp_path)}
+    hooks = []
+    for i in range(20):
+        hook = subprocess.Popen([HOOK], stdin=subprocess.PIPE, env=env)
+        hook.stdin.write(json.dumps({**payload, "tool_use_id": f"toolu_{i}"}).encode())
+        hook.stdin.close()
+        hooks.append(hook)
+    assert all(hook.wait(timeout=10) == 0 for hook in hooks)
+    assert len(spool_lines(tmp_path)) == 20
+    db.rmdir()
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
+    assert len(rows(tmp_path)) == 21 and spool_lines(tmp_path) == []

@@ -1,7 +1,10 @@
-"""SQLite event store at ~/.attention-triage/triage.db."""
+"""SQLite event store at ~/.attention-triage/triage.db, and the spool that buffers events while
+the DB can't be written."""
 
+import fcntl
 import json
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 COLUMNS = [
@@ -87,3 +90,40 @@ def record_drift(
         [(hook_event or "?", field, problem, ts) for field, problem in issues],
     )
     conn.commit()
+
+
+def spool_path() -> Path:
+    return data_dir() / "spool.jsonl"
+
+
+@contextmanager
+def spool_lock():
+    """Hooks run in parallel: without the lock, an event appended while another hook ingests
+    could land in a spool that is about to be deleted."""
+    data_dir().mkdir(parents=True, exist_ok=True)
+    with open(data_dir() / "spool.lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def spool(event: dict) -> None:
+    """Buffer an event the DB couldn't take; the next successful hook run stores it."""
+    with spool_lock(), open(spool_path(), "a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def ingest_spool(conn: sqlite3.Connection) -> None:
+    """Store spooled events (dedup makes repeats harmless), then delete the spool. If storing
+    fails, the spool stays for the next run."""
+    if not spool_path().exists():
+        return
+    with spool_lock():
+        if not spool_path().exists():  # another hook ingested it while we waited
+            return
+        for line in spool_path().read_text(encoding="utf-8").splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # cut short by a killed hook; failing on it would wedge every ingest
+            insert_event(conn, event)
+        spool_path().unlink()
