@@ -1,0 +1,16 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "3aec1669-f186-445c-ade7-3864cea324f2",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "The command failed, and I stopped there without retrying:\n\n```\ntouch: /Users/alice/triage-spike-blocked.txt: Operation not permitted\n```\n\nThe sandbox blocked it because your home directory (`~`) isn't on its list of places it can write to. If you want it to be writable, you can change that with `/sandbox`.",
+  "background_tasks": [],
+  "session_crons": []
+}

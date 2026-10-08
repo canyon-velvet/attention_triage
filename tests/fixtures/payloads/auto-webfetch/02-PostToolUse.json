@@ -1,0 +1,27 @@
+{
+  "session_id": "323b0a23-0680-4f81-9ba9-cb94f07d9e22",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/323b0a23-0680-4f81-9ba9-cb94f07d9e22/scratchpad",
+  "prompt_id": "f3754299-74cd-48a0-a3ae-0c4f0e8462f6",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "WebFetch",
+  "tool_input": {
+    "url": "https://example.com",
+    "prompt": "What is the page title?"
+  },
+  "tool_response": {
+    "bytes": 577,
+    "code": 200,
+    "codeText": "OK",
+    "result": "The page title is \"Example Domain.\"",
+    "durationMs": 1152,
+    "url": "https://example.com"
+  },
+  "tool_use_id": "toolu_01B9CmyWL7Ag36PkxYdu9ZAD",
+  "duration_ms": 1152
+}

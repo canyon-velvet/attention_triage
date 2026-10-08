@@ -1,0 +1,18 @@
+{
+  "session_id": "9e427e7c-0d3a-4502-afa8-b45912778096",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096/scratchpad",
+  "prompt_id": "aaf631c3-fbc1-44be-949a-4c035cb6fe68",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "touch ~/triage-spike-blocked.txt",
+    "description": "Create empty file in home directory"
+  },
+  "tool_use_id": "toolu_015nKmnyc6GrSwmUL2CTTrkk"
+}

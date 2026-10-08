@@ -1,0 +1,26 @@
+{
+  "session_id": "9e427e7c-0d3a-4502-afa8-b45912778096",
+  "transcript_path": "/Users/alice/.claude/projects/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096.jsonl",
+  "cwd": "/Users/alice/Dev/triage-spike",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-alice-Dev-triage-spike/9e427e7c-0d3a-4502-afa8-b45912778096/scratchpad",
+  "prompt_id": "a37e7dd5-3fcd-4e1a-9aaf-0ba94a4dd71e",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/Users/alice/Dev/triage-spike/notes2.txt",
+    "old_string": "hello\n",
+    "new_string": "hello\nworld\n",
+    "replace_all": false
+  },
+  "permission_suggestions": [
+    {
+      "type": "setMode",
+      "mode": "acceptEdits",
+      "destination": "session"
+    }
+  ]
+}
