@@ -26,12 +26,23 @@ def main() -> None:
                     store.record_drift(
                         conn, text(payload.get("hook_event_name")), issues, event["ts"]
                     )
+                if event["event_type"] == "session_start":
+                    purge_old_events(conn)
         except Exception:
             store.spool(event)  # a delay, not a loss; the error is still logged below
             raise
     except Exception:
         log_error()
     sys.exit(0)
+
+
+def purge_old_events(conn) -> None:
+    """Retention without the UI: runs at each session start, in this async hook so no one waits.
+    The event is already stored, so a failed purge is logged, never spooled."""
+    try:
+        store.purge(conn)
+    except Exception:
+        log_error()
 
 
 def session_notice() -> None:

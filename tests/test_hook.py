@@ -4,6 +4,7 @@ import sqlite3
 import subprocess
 import sys
 from contextlib import closing
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -189,3 +190,31 @@ def test_session_notice_is_shown_even_if_it_cannot_be_recorded(tmp_path):
     assert (
         notice.returncode == 0 and "capture failing" in json.loads(notice.stdout)["systemMessage"]
     )
+
+
+def seed_events_aged(home: Path, monkeypatch, days_old: list[int]) -> None:
+    """Store one fixture event per age, as if each was captured that many days ago."""
+    monkeypatch.setenv("HOME", str(home))
+    paths = [
+        FIXTURES / "auto-webfetch" / "01-PreToolUse.json",
+        FIXTURES / "auto-webfetch" / "02-PostToolUse.json",
+    ]
+    with closing(store.connect()) as conn:
+        for path, days in zip(paths, days_old, strict=False):
+            now = datetime.now(UTC) - timedelta(days=days)
+            store.insert_event(conn, normalize(json.loads(path.read_text()), now=now))
+
+
+@pytest.mark.parametrize(
+    "trigger", ["session-lifecycle/01-SessionStart.json", "auto-subagent/01-PreToolUse.json"]
+)
+def test_session_start_deletes_events_older_than_the_retention_period(
+    tmp_path, monkeypatch, trigger
+):
+    seed_events_aged(tmp_path, monkeypatch, [store.RETENTION_DAYS + 1, store.RETENTION_DAYS - 1])
+    run_hook(tmp_path, (FIXTURES / trigger).read_bytes())
+    kept = [row["event_type"] for row in rows(tmp_path) if row["tool_name"] == "WebFetch"]
+    if trigger.endswith("SessionStart.json"):
+        assert kept == ["tool_result"]  # the older tool_call is gone, the newer result stays
+    else:
+        assert kept == ["tool_call", "tool_result"]  # other events never purge

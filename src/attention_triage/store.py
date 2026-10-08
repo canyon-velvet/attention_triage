@@ -5,7 +5,12 @@ import fcntl
 import json
 import sqlite3
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+# Temporary: SPEC §4 says retention_days from policy.yaml (default 30). Kept short until the
+# review UI exists; revisit with #22, and read it from the policy once #6 lands.
+RETENTION_DAYS = 7
 
 COLUMNS = [
     "agent",
@@ -46,6 +51,7 @@ CREATE TABLE IF NOT EXISTS events (
     dedup_key TEXT NOT NULL UNIQUE,
     install_scope TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS events_ts ON events (ts);
 CREATE TABLE IF NOT EXISTS drift (
     hook_event TEXT NOT NULL,
     field TEXT NOT NULL,
@@ -89,6 +95,14 @@ def record_drift(
         "INSERT OR IGNORE INTO drift (hook_event, field, problem, first_seen) VALUES (?, ?, ?, ?)",
         [(hook_event or "?", field, problem, ts) for field, problem in issues],
     )
+    conn.commit()
+
+
+def purge(conn: sqlite3.Connection, days: int = RETENTION_DAYS) -> None:
+    """Delete events captured more than `days` ago. `ts` is always UTC in one ISO layout, so
+    comparing the strings compares the times."""
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat(timespec="milliseconds")
+    conn.execute("DELETE FROM events WHERE ts < ?", [cutoff])
     conn.commit()
 
 
