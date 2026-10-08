@@ -11,12 +11,18 @@ from attention_triage.normalize import normalize
 
 def main() -> None:
     try:
-        payload = json.loads(sys.stdin.buffer.read())
+        payload = read_payload()
         with closing(store.connect()) as conn:
             store.insert_event(conn, normalize(payload))
     except Exception:
         log_error()
     sys.exit(0)
+
+
+def read_payload():
+    payload = json.loads(sys.stdin.buffer.read())
+    # A lone UTF-16 surrogate (e.g. an emoji cut in half) can't be stored in SQLite; replace it.
+    return json.loads(json.dumps(payload, ensure_ascii=False).encode("utf-8", "replace"))
 
 
 def log_error() -> None:

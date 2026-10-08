@@ -56,6 +56,14 @@ def test_stored_row_matches_the_normalized_event(tmp_path):
             assert row[column] == expected[column], column
 
 
+def test_lone_surrogate_from_a_cut_emoji_is_still_stored(tmp_path):
+    path = FIXTURES / "auto-sandbox-block-filesystem" / "01-PreToolUse.json"
+    stdin = path.read_text().replace("touch ~/triage-spike-blocked.txt", "echo \\ud83d").encode()
+    assert run_hook(tmp_path, stdin) == 0
+    [row] = rows(tmp_path)
+    assert row["target"] == "echo ?"
+
+
 def test_db_uses_wal_and_a_two_second_busy_timeout(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     with closing(store.connect()) as conn:
