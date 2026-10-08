@@ -6,6 +6,7 @@
 Install refuses if a "hooks" key already exists, so uninstall can simply delete it.
 The hook runs record_hook.py with the same Python that ran install.
 """
+
 import json
 import shlex
 import shutil
@@ -14,7 +15,13 @@ from pathlib import Path
 
 SETTINGS = Path.home() / ".claude" / "settings.json"
 COMMAND = shlex.join([sys.executable, str(Path(__file__).resolve().parent / "record_hook.py")])
-TOOL_EVENTS = ["PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "PermissionDenied"]
+TOOL_EVENTS = [
+    "PreToolUse",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "PermissionRequest",
+    "PermissionDenied",
+]
 OTHER_EVENTS = ["SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop"]
 
 
@@ -29,12 +36,14 @@ def main(action):
     settings = json.loads(SETTINGS.read_text())
     if action == "install":
         if "hooks" in settings:
-            sys.exit("settings.json already has a \"hooks\" key; merge by hand instead.")
+            sys.exit('settings.json already has a "hooks" key; merge by hand instead.')
         shutil.copy(SETTINGS, SETTINGS.with_name("settings.json.bak-triage-spike"))
         settings["hooks"] = hooks()
     elif action == "uninstall":
         if settings.get("hooks") != hooks():
-            sys.exit("\"hooks\" key differs from what install wrote; remove the recorder hooks by hand.")
+            sys.exit(
+                '"hooks" key differs from what install wrote; remove the recorder hooks by hand.'
+            )
         del settings["hooks"]
     else:
         sys.exit(__doc__)

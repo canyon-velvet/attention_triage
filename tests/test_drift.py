@@ -4,9 +4,9 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+from test_hook import ALL_FIXTURES, rows, run_hook
 
 from attention_triage.normalize import check_shape, normalize
-from test_hook import ALL_FIXTURES, rows, run_hook
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 BASH_CALL = FIXTURES / "auto-sandbox-block-filesystem" / "01-PreToolUse.json"
@@ -36,7 +36,9 @@ def test_missing_and_mistyped_fields_are_reported():
 
 
 def test_mistyped_fields_normalize_to_none():
-    event = normalize(bash_call(cwd=["/x"], tool_input={"command": ["ls"]}, hook_event_name=["PreToolUse"]))
+    event = normalize(
+        bash_call(cwd=["/x"], tool_input={"command": ["ls"]}, hook_event_name=["PreToolUse"])
+    )
     assert event["cwd"] is None and event["project_root"] is None
     assert event["target"] is None and event["event_type"] is None
 
