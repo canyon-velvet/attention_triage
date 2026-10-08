@@ -1,4 +1,15 @@
-"""Claude Code hook payload -> agent-neutral event."""
+"""Claude Code adapter: hook payload -> agent-neutral event.
+
+This module knows Claude Code's payload format (hook.py also reads `hook_event_name` to label drift
+rows); storage, rules and the UI read the neutral event fields. Missing or mistyped fields become
+None. Drift is recorded only for the fields Triage relies on: EXPECTED_FIELDS and
+EXPECTED_TOOL_INPUT (check_shape).
+
+Supporting another agent (Codex, Cursor, ...) means adding a sibling adapter, not changing this one:
+1. move this module to adapters/claude_code.py;
+2. add adapters/<agent>.py with that agent's recorded fixtures and expected fields;
+3. have the installed hook name its agent (`triage-hook --agent <agent>`) to pick the adapter.
+"""
 
 import hashlib
 import json
