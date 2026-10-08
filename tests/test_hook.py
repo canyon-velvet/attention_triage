@@ -79,9 +79,10 @@ def test_bad_stdin_exits_0_stores_nothing_and_logs(tmp_path, stdin):
     assert (tmp_path / ".attention-triage" / "hook-errors.log").read_text()
 
 
-def spool_lines(home: Path) -> list[str]:
+def spool_lines(home: Path) -> list[bytes]:
+    """Non-blank spool records (each one starts on a fresh line, so blank lines are expected)."""
     spool = home / ".attention-triage" / "spool.jsonl"
-    return spool.read_text().splitlines() if spool.exists() else []
+    return [line for line in spool.read_bytes().splitlines() if line] if spool.exists() else []
 
 
 def make_db_unavailable(home: Path) -> Path:
@@ -113,14 +114,24 @@ def test_next_successful_run_ingests_the_spool_without_duplicates(tmp_path):
     assert len(rows(tmp_path)) == 2
 
 
-def test_a_spool_line_cut_short_is_skipped_not_fatal(tmp_path):
+@pytest.mark.parametrize("cut", [b'{"agent": "clau', '{"target": "中'.encode()[:-2]])
+def test_a_record_cut_short_loses_only_itself(tmp_path, cut):
     db = make_db_unavailable(tmp_path)
+    (tmp_path / ".attention-triage" / "spool.jsonl").write_bytes(cut)  # a hook killed mid-write
     run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
     db.rmdir()
-    spool = tmp_path / ".attention-triage" / "spool.jsonl"
-    spool.write_text('{"agent": "claude-co\n' + spool.read_text())  # a hook killed mid-write
     run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
     assert len(rows(tmp_path)) == 2 and spool_lines(tmp_path) == []
+
+
+def test_a_line_separator_inside_an_event_does_not_split_it(tmp_path):
+    db = make_db_unavailable(tmp_path)
+    payload = json.loads((FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_text())
+    payload["tool_input"]["prompt"] = "first\u2028second"
+    run_hook(tmp_path, json.dumps(payload, ensure_ascii=False).encode())
+    db.rmdir()
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
+    assert len(rows(tmp_path)) == 2
 
 
 def test_parallel_hooks_spool_and_ingest_every_event(tmp_path):

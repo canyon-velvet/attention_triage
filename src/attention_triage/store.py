@@ -109,7 +109,9 @@ def spool_lock():
 def spool(event: dict) -> None:
     """Buffer an event the DB couldn't take; the next successful hook run stores it."""
     with spool_lock(), open(spool_path(), "a", encoding="utf-8") as f:
-        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        # The leading newline ends a record a killed hook left without one, so this event
+        # doesn't join that broken line and get skipped with it.
+        f.write("\n" + json.dumps(event, ensure_ascii=False) + "\n")
 
 
 def ingest_spool(conn: sqlite3.Connection) -> None:
@@ -120,10 +122,12 @@ def ingest_spool(conn: sqlite3.Connection) -> None:
     with spool_lock():
         if not spool_path().exists():  # another hook ingested it while we waited
             return
-        for line in spool_path().read_text(encoding="utf-8").splitlines():
+        # Bytes, split only on \n and \r: str.splitlines() would also split an event on U+2028,
+        # which json.dumps(ensure_ascii=False) leaves unescaped.
+        for line in spool_path().read_bytes().splitlines():
             try:
                 event = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # cut short by a killed hook; failing on it would wedge every ingest
+            except ValueError:  # blank, or cut short (even mid-character) by a killed hook:
+                continue  # failing on it would wedge every ingest
             insert_event(conn, event)
         spool_path().unlink()
