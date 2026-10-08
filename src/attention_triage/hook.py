@@ -8,12 +8,13 @@ from datetime import UTC, datetime
 
 from attention_triage import store
 from attention_triage.normalize import check_shape, normalize, text
+from attention_triage.redact import redact
 
 
 def main() -> None:
     try:
         payload = read_payload()
-        event = normalize(payload)
+        event = normalize(redact(payload))
         with closing(store.connect()) as conn:
             store.insert_event(conn, event)
             if issues := check_shape(payload):
