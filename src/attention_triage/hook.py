@@ -6,7 +6,7 @@ import traceback
 from contextlib import closing
 from datetime import UTC, datetime
 
-from attention_triage import store
+from attention_triage import policy, rules, store
 from attention_triage.normalize import check_shape, normalize, text
 from attention_triage.redact import redact
 
@@ -20,8 +20,10 @@ def main() -> None:
         event = normalize(redact(payload))
         try:
             with closing(store.connect()) as conn:
-                store.ingest_spool(conn)
-                store.insert_event(conn, event)
+                # Flag each batch as soon as it is stored, so a later failure can't skip it.
+                flag(conn, store.ingest_spool(conn))
+                if store.insert_event(conn, event):
+                    flag(conn, [event])
                 if issues := check_shape(payload):
                     store.record_drift(
                         conn, text(payload.get("hook_event_name")), issues, event["ts"]
@@ -34,6 +36,18 @@ def main() -> None:
     except Exception:
         log_error()
     sys.exit(0)
+
+
+def flag(conn, events: list[dict]) -> None:
+    """Run the rules on stored events. They are already stored, so a failure here (an invalid
+    policy.yaml, a rule bug) is logged, never spooled."""
+    if not events:
+        return
+    try:
+        loaded, version = policy.load()
+        store.insert_flags(conn, [f for e in events for f in rules.evaluate(e, loaded, version)])
+    except Exception:
+        log_error()
 
 
 def purge_old_events(conn) -> None:

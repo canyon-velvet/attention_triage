@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from attention_triage import store
+from attention_triage import policy, rules, store
 from attention_triage.normalize import normalize
 from attention_triage.redact import redact
 
@@ -23,13 +23,13 @@ def run_hook(home: Path, stdin: bytes) -> int:
     return subprocess.run([HOOK], input=stdin, env=env, timeout=10).returncode
 
 
-def rows(home: Path) -> list[sqlite3.Row]:
+def rows(home: Path, table: str = "events") -> list[sqlite3.Row]:
     db = home / ".attention-triage" / "triage.db"
     if not db.exists():
         return []
     with closing(sqlite3.connect(db)) as conn:
         conn.row_factory = sqlite3.Row
-        return conn.execute("SELECT * FROM events").fetchall()
+        return conn.execute(f"SELECT * FROM {table}").fetchall()
 
 
 @pytest.mark.parametrize("path", ALL_FIXTURES, ids=lambda p: f"{p.parent.name}/{p.name}")
@@ -218,3 +218,80 @@ def test_session_start_deletes_events_older_than_the_retention_period(
         assert kept == ["tool_result"]  # the older tool_call is gone, the newer result stays
     else:
         assert kept == ["tool_call", "tool_result"]  # other events never purge
+
+
+BYPASS = FIXTURES / "auto-bypass-preemptive" / "01-PreToolUse.json"
+
+
+def test_a_bypass_is_flagged_under_the_default_policy(tmp_path):
+    assert run_hook(tmp_path, BYPASS.read_bytes()) == 0
+    [event] = rows(tmp_path)
+    [flag] = rows(tmp_path, "flags")
+    policy_file = tmp_path / ".attention-triage" / "policy.yaml"
+    assert policy_file.read_text() == policy.DEFAULT_POLICY
+    assert dict(flag) | {"id": None, "created_at": None, "updated_at": None} == {
+        "id": None,
+        "event_key": event["dedup_key"],
+        "rule_id": "sandbox_bypass",
+        "severity": "high",
+        "reason": "The agent asked to run a command with the sandbox disabled.",
+        "label": "preemptive",
+        "evidence": '{"command": "ls ~/Desktop"}',
+        "policy_version": policy.parse(policy.DEFAULT_POLICY)[1],
+        "status": "open",
+        "suppression_id": None,
+        "created_at": None,
+        "updated_at": None,
+    }
+    assert flag["created_at"] == flag["updated_at"] >= event["ts"]
+    run_hook(tmp_path, BYPASS.read_bytes())  # a duplicate event adds no flag
+    assert len(rows(tmp_path, "flags")) == 1
+
+
+def test_a_rule_disabled_in_the_policy_file_flags_nothing(tmp_path):
+    (tmp_path / ".attention-triage").mkdir()
+    (tmp_path / ".attention-triage" / "policy.yaml").write_text(
+        "version: 1\nrules:\n  sandbox_bypass:\n    enabled: false\n"
+    )
+    assert run_hook(tmp_path, BYPASS.read_bytes()) == 0
+    assert len(rows(tmp_path)) == 1 and rows(tmp_path, "flags") == []
+
+
+def test_an_invalid_policy_still_stores_the_event_and_exits_0(tmp_path):
+    (tmp_path / ".attention-triage").mkdir()
+    (tmp_path / ".attention-triage" / "policy.yaml").write_text("version: 2\n")
+    assert run_hook(tmp_path, BYPASS.read_bytes()) == 0
+    assert len(rows(tmp_path)) == 1 and rows(tmp_path, "flags") == []
+    assert spool_lines(tmp_path) == []  # stored, so not buffered for a retry
+    assert "PolicyError" in (tmp_path / ".attention-triage" / "hook-errors.log").read_text()
+
+
+def test_a_spooled_bypass_is_flagged_when_ingested(tmp_path):
+    db = make_db_unavailable(tmp_path)
+    run_hook(tmp_path, BYPASS.read_bytes())
+    db.rmdir()
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    [flag] = rows(tmp_path, "flags")
+    assert flag["event_key"] == normalize(redact(json.loads(BYPASS.read_text())))["dedup_key"]
+
+
+def test_a_spooled_event_stored_by_a_failed_run_still_gets_its_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    event = normalize(redact(json.loads(BYPASS.read_text())))
+    with closing(store.connect()) as conn:
+        store.insert_event(conn, event)  # stored, then the run failed and spooled it
+    store.spool(event)
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    [flag] = rows(tmp_path, "flags")
+    assert flag["event_key"] == event["dedup_key"]
+
+
+def test_purging_an_event_deletes_its_flags(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    old = datetime.now(UTC) - timedelta(days=store.RETENTION_DAYS + 1)
+    event = normalize(json.loads(BYPASS.read_text()), now=old)
+    with closing(store.connect()) as conn:
+        store.insert_event(conn, event)
+        store.insert_flags(conn, rules.evaluate(event, *policy.parse(policy.DEFAULT_POLICY)))
+        store.purge(conn)
+    assert rows(tmp_path) == [] and rows(tmp_path, "flags") == []
