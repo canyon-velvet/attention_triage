@@ -33,7 +33,9 @@ def main(action):
         shutil.copy(SETTINGS, SETTINGS.with_name("settings.json.bak-triage-spike"))
         settings["hooks"] = hooks()
     elif action == "uninstall":
-        settings.pop("hooks", None)
+        if settings.get("hooks") != hooks():
+            sys.exit("\"hooks\" key differs from what install wrote; remove the recorder hooks by hand.")
+        del settings["hooks"]
     else:
         sys.exit(__doc__)
     SETTINGS.write_text(json.dumps(settings, indent=2) + "\n")
