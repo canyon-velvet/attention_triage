@@ -8,8 +8,22 @@ from attention_triage.normalize import EVENT_TYPES, normalize, project_root
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
 FIELDS = {
-    "agent", "session_id", "agent_id", "event_type", "tool_name", "tool_use_id", "target_kind", "target",
-    "stated_reason", "project_root", "cwd", "ts", "summary", "raw", "dedup_key", "install_scope",
+    "agent",
+    "session_id",
+    "agent_id",
+    "event_type",
+    "tool_name",
+    "tool_use_id",
+    "target_kind",
+    "target",
+    "stated_reason",
+    "project_root",
+    "cwd",
+    "ts",
+    "summary",
+    "raw",
+    "dedup_key",
+    "install_scope",
 }
 
 
@@ -31,7 +45,10 @@ def test_every_fixture_maps_to_the_neutral_shape(path):
 
 def test_bash_call_targets_its_command_and_keeps_the_description():
     event = normalize(load("auto-sandbox-block-filesystem/01-PreToolUse.json"))
-    assert (event["target_kind"], event["target"]) == ("command", "touch ~/triage-spike-blocked.txt")
+    assert (event["target_kind"], event["target"]) == (
+        "command",
+        "touch ~/triage-spike-blocked.txt",
+    )
     assert event["stated_reason"] == "Create empty file in home directory"
     assert event["tool_use_id"].startswith("toolu_")
     assert event["summary"] == {"permission_mode": "auto"}
@@ -39,7 +56,10 @@ def test_bash_call_targets_its_command_and_keeps_the_description():
 
 def test_file_and_url_targets():
     write = normalize(load("auto-write-outside-project/01-PreToolUse.json"))
-    assert (write["target_kind"], write["target"]) == ("path", "/Users/alice/Dev/triage-spike-outside/test.txt")
+    assert (write["target_kind"], write["target"]) == (
+        "path",
+        "/Users/alice/Dev/triage-spike-outside/test.txt",
+    )
     fetch = normalize(load("auto-webfetch/01-PreToolUse.json"))
     assert (fetch["target_kind"], fetch["target"]) == ("url", "https://example.com")
 
@@ -68,7 +88,9 @@ def test_dedup_key_separates_events_of_one_tool_call():
 
 def test_dedup_key_is_stable_for_a_redelivered_payload():
     payload = load("default-prompt-approved-write/02-PermissionRequest.json")  # has no tool_use_id
-    assert normalize(payload)["dedup_key"] == normalize(dict(reversed(payload.items())))["dedup_key"]
+    assert (
+        normalize(payload)["dedup_key"] == normalize(dict(reversed(payload.items())))["dedup_key"]
+    )
 
 
 def test_unknown_event_and_bad_tool_input_pass_through():

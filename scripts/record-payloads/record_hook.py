@@ -4,6 +4,7 @@ Saves every Claude Code hook payload verbatim to payloads/. The file name starts
 with the receive time in nanoseconds, so arrival order can be checked later.
 Never raises, always exits 0.
 """
+
 import json
 import os
 import sys

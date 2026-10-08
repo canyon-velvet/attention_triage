@@ -1,4 +1,5 @@
 """triage-hook: store one Claude Code hook event from stdin. Never raises; always exits 0."""
+
 import json
 import sys
 import traceback

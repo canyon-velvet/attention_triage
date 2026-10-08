@@ -1,4 +1,5 @@
 """Claude Code hook payload -> agent-neutral event."""
+
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -21,7 +22,12 @@ EVENT_TYPES = {
 }
 
 # tool_input key -> target_kind; the first key present wins.
-TARGET_KEYS = [("command", "command"), ("file_path", "path"), ("notebook_path", "path"), ("url", "url")]
+TARGET_KEYS = [
+    ("command", "command"),
+    ("file_path", "path"),
+    ("notebook_path", "path"),
+    ("url", "url"),
+]
 
 # Small top-level payload fields worth keeping in the summary.
 SUMMARY_KEYS = ["permission_mode", "agent_type", "source", "reason", "error", "is_interrupt"]
@@ -41,7 +47,13 @@ EXPECTED_FIELDS = {
     "SubagentStart": {**COMMON_FIELDS, "agent_id": str},
     "SubagentStop": {**COMMON_FIELDS, "agent_id": str},
 }
-EXPECTED_TOOL_INPUT = {"Bash": "command", "Write": "file_path", "Edit": "file_path", "NotebookEdit": "notebook_path", "WebFetch": "url"}
+EXPECTED_TOOL_INPUT = {
+    "Bash": "command",
+    "Write": "file_path",
+    "Edit": "file_path",
+    "NotebookEdit": "notebook_path",
+    "WebFetch": "url",
+}
 
 
 def normalize(payload: dict, now: datetime | None = None) -> dict:
@@ -49,11 +61,17 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         tool_input = {}
-    target_kind, target = next(((kind, tool_input[key]) for key, kind in TARGET_KEYS if key in tool_input), (None, None))
+    target_kind, target = next(
+        ((kind, tool_input[key]) for key, kind in TARGET_KEYS if key in tool_input), (None, None)
+    )
     hook_event = text(payload.get("hook_event_name"))
     event_type = EVENT_TYPES.get(hook_event, hook_event)
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    session_id, tool_use_id, cwd = text(payload.get("session_id")), text(payload.get("tool_use_id")), text(payload.get("cwd"))
+    session_id, tool_use_id, cwd = (
+        text(payload.get("session_id")),
+        text(payload.get("tool_use_id")),
+        text(payload.get("cwd")),
+    )
     return {
         "agent": AGENT,
         "session_id": session_id,
@@ -76,10 +94,17 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
 
 def check_shape(payload: dict) -> list[tuple[str, str]]:
     """(field, "missing" | "type") for each expected field that drifted. Unknown events have no expectations."""
-    expected = {"hook_event_name": str, **EXPECTED_FIELDS.get(text(payload.get("hook_event_name")), {})}
+    expected = {
+        "hook_event_name": str,
+        **EXPECTED_FIELDS.get(text(payload.get("hook_event_name")), {}),
+    }
     found = dict(payload)
     tool_input = payload.get("tool_input")
-    if "tool_input" in expected and isinstance(tool_input, dict) and text(payload.get("tool_name")) in EXPECTED_TOOL_INPUT:
+    if (
+        "tool_input" in expected
+        and isinstance(tool_input, dict)
+        and text(payload.get("tool_name")) in EXPECTED_TOOL_INPUT
+    ):
         key = EXPECTED_TOOL_INPUT[payload["tool_name"]]
         expected[f"tool_input.{key}"] = str
         if key in tool_input:
