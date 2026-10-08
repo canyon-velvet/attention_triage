@@ -12,6 +12,9 @@ from attention_triage.redact import redact
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--session-notice"]:
+        session_notice()
+        sys.exit(0)
     try:
         payload = read_payload()
         event = normalize(redact(payload))
@@ -29,6 +32,31 @@ def main() -> None:
     except Exception:
         log_error()
     sys.exit(0)
+
+
+def session_notice() -> None:
+    """Synchronous SessionStart hook (Claude Code ignores async hooks' output): while events are
+    buffered in the spool instead of stored, tell the user once per session."""
+    try:
+        session_id = str(read_payload().get("session_id"))
+        notified = store.data_dir() / "notified-sessions"
+        if not store.spool_path().exists() or (
+            notified.exists() and session_id in notified.read_text().split()
+        ):
+            return
+        log = store.data_dir() / "hook-errors.log"
+        lines = log.read_text().splitlines() if log.exists() else []
+        reason = next((line for line in reversed(lines) if line.strip()), "unknown error")
+        # TODO(#20): point to `triage doctor` (SPEC §7) once it exists.
+        message = (
+            f"attention-triage: capture failing ({reason[:200]}); events buffered. Details: {log}"
+        )
+        print(json.dumps({"systemMessage": message}))
+        # Recorded after printing: if this write fails, the user is still told (just again later).
+        with open(notified, "a") as f:
+            f.write(session_id + "\n")
+    except Exception:
+        log_error()
 
 
 def read_payload():

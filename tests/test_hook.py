@@ -149,3 +149,43 @@ def test_parallel_hooks_spool_and_ingest_every_event(tmp_path):
     db.rmdir()
     run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "02-PostToolUse.json").read_bytes())
     assert len(rows(tmp_path)) == 21 and spool_lines(tmp_path) == []
+
+
+def run_notice(home: Path, session_id: str) -> subprocess.CompletedProcess:
+    payload = json.loads((FIXTURES / "session-lifecycle" / "01-SessionStart.json").read_text())
+    stdin = json.dumps({**payload, "session_id": session_id}).encode()
+    env = {**os.environ, "HOME": str(home)}
+    return subprocess.run(
+        [HOOK, "--session-notice"], input=stdin, env=env, capture_output=True, timeout=10
+    )
+
+
+def test_session_notice_is_silent_while_capture_works(tmp_path):
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    notice = run_notice(tmp_path, "s1")
+    assert notice.returncode == 0 and notice.stdout == b""
+
+
+def test_session_notice_warns_once_per_session_while_events_are_buffered(tmp_path):
+    make_db_unavailable(tmp_path)
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    first = run_notice(tmp_path, "s1")
+    assert first.returncode == 0
+    message = json.loads(first.stdout)["systemMessage"]
+    assert "capture failing" in message and "unable to open database file" in message
+    assert run_notice(tmp_path, "s1").stdout == b""  # resume / compact: same session, no repeat
+    assert run_notice(tmp_path, "s2").stdout != b""  # a new session is told again
+
+
+def test_session_notice_is_shown_even_if_it_cannot_be_recorded(tmp_path):
+    make_db_unavailable(tmp_path)
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    data = tmp_path / ".attention-triage"
+    data.chmod(0o555)  # notified-sessions can't be created
+    try:
+        notice = run_notice(tmp_path, "s1")
+    finally:
+        data.chmod(0o755)
+    assert (
+        notice.returncode == 0 and "capture failing" in json.loads(notice.stdout)["systemMessage"]
+    )
