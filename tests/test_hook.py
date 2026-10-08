@@ -10,6 +10,7 @@ import pytest
 
 from attention_triage import store
 from attention_triage.normalize import normalize
+from attention_triage.redact import redact
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
@@ -48,7 +49,7 @@ def test_stored_row_matches_the_normalized_event(tmp_path):
     path = FIXTURES / "auto-sandbox-block-filesystem" / "02-PostToolUseFailure.json"
     run_hook(tmp_path, path.read_bytes())
     [row] = rows(tmp_path)
-    expected = normalize(json.loads(path.read_text()))
+    expected = normalize(redact(json.loads(path.read_text())))
     for column in store.COLUMNS:
         if column == "summary":
             assert json.loads(row[column]) == expected[column]
