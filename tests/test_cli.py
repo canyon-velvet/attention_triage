@@ -50,11 +50,18 @@ def test_dry_run_shows_the_diff_and_writes_nothing(settings, home, capsys):
     assert backups(settings) == [] and not (home / ".attention-triage").exists()
 
 
-def test_declining_writes_nothing(settings, monkeypatch):
+@pytest.mark.parametrize("reply", ["n", EOFError], ids=["no", "no-stdin"])
+def test_declining_writes_nothing(settings, monkeypatch, capsys, reply):
+    def decline(prompt):
+        if reply is EOFError:
+            raise EOFError
+        return reply
+
     before = settings.read_bytes()
-    answer(monkeypatch, "n")
+    monkeypatch.setattr("builtins.input", decline)
     cli.main(["install"])
     assert settings.read_bytes() == before and backups(settings) == []
+    assert "Nothing written." in capsys.readouterr().out
 
 
 def test_a_change_made_while_confirming_is_not_overwritten(settings, monkeypatch):

@@ -106,7 +106,11 @@ def save(old_text: str, new: dict, dry_run: bool) -> bool:
     if dry_run:
         print("Dry run: nothing written.")
         return False
-    if input(f"Write {path}? [y/N] ").strip().lower() != "y":
+    try:
+        reply = input(f"Write {path}? [y/N] ")
+    except EOFError:  # no one to answer, e.g. stdin closed in a script: same as "no"
+        reply = ""
+    if reply.strip().lower() != "y":
         print("Nothing written.")
         return False
     if read_settings() != old_text:
