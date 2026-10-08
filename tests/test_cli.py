@@ -102,6 +102,29 @@ def test_installing_twice_changes_nothing(settings, monkeypatch, capsys):
     assert "already installed" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("with_hooks", [True, False], ids=["user-hooks", "no-hooks"])
+def test_uninstall_restores_a_claude_code_formatted_file_byte_for_byte(
+    settings, monkeypatch, with_hooks
+):
+    if not with_hooks:
+        settings.write_text(json.dumps({"model": "opus"}, indent=2) + "\n")
+    before = settings.read_bytes()
+    answer(monkeypatch, "y")
+    cli.main(["install"])
+    cli.main(["uninstall"])
+    assert settings.read_bytes() == before
+    assert len(backups(settings)) == 2
+
+
+def test_uninstall_keeps_a_user_handler_that_shares_a_group_with_ours(settings, monkeypatch):
+    ours = {"type": "command", "command": "/opt/triage/bin/triage-hook", "async": True}
+    theirs = {"type": "command", "command": "~/notify.sh"}
+    settings.write_text(json.dumps({"hooks": {"Stop": [{"hooks": [ours, theirs]}]}}))
+    answer(monkeypatch, "y")
+    cli.main(["uninstall"])
+    assert json.loads(settings.read_text()) == {"hooks": {"Stop": [{"hooks": [theirs]}]}}
+
+
 def test_the_installed_command_stores_an_event(home, monkeypatch):
     answer(monkeypatch, "y")
     cli.main(["install"])  # no settings.json yet: install creates it
