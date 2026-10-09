@@ -83,6 +83,9 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
         text(payload.get("tool_use_id")),
         text(payload.get("cwd")),
     )
+    summary = {key: payload[key] for key in SUMMARY_KEYS if key in payload}
+    if tool_input.get("dangerouslyDisableSandbox") is True:  # Bash only; absent when not set
+        summary["sandbox_disabled"] = True
     return {
         "agent": AGENT,
         "session_id": session_id,
@@ -96,7 +99,7 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
         "project_root": project_root(cwd),
         "cwd": cwd,
         "ts": (now or datetime.now(UTC)).isoformat(timespec="milliseconds"),
-        "summary": {key: payload[key] for key in SUMMARY_KEYS if key in payload},
+        "summary": summary,
         "raw": raw,
         "dedup_key": dedup_key(session_id, event_type, tool_use_id, raw),
         "install_scope": INSTALL_SCOPE,
