@@ -100,6 +100,12 @@ def test_the_flag_names_the_path_and_why_it_is_protected(home, project):
     }
 
 
+@pytest.mark.parametrize("platform, flagged", [("darwin", 1), ("linux", 0)])
+def test_letter_case_is_ignored_on_macos(project, monkeypatch, platform, flagged):
+    monkeypatch.setattr("sys.platform", platform)
+    assert len(r3(write(project / ".claude" / "Settings.Local.json", project))) == flagged
+
+
 def test_a_symlink_into_the_claude_dir_is_flagged(home, project):
     (project / "link").symlink_to(home / ".claude")
     assert len(r3(write(project / "link" / "settings.json", project))) == 1

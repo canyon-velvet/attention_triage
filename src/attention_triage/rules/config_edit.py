@@ -5,6 +5,8 @@ Writes made by Bash commands are not seen (v1 gap).
 """
 
 import os
+import sys
+from pathlib import Path
 
 from attention_triage import store
 from attention_triage.rules.paths import written_path
@@ -16,7 +18,7 @@ def check(event: dict, settings: dict) -> dict | None:
     if not (path := written_path(event)):
         return None
     for protected, why in protected_paths(event["project_root"], settings):
-        if path.is_relative_to(os.path.realpath(protected)):
+        if Path(fold(str(path))).is_relative_to(fold(os.path.realpath(protected))):
             return {
                 "reason": "The agent asked to edit Claude Code's settings or hooks, or Triage's data.",
                 "label": "",
@@ -38,3 +40,9 @@ def protected_paths(project_root: str, settings: dict) -> list[tuple[str, str]]:
         (os.path.expanduser(p), "extra_protected_paths") for p in settings["extra_protected_paths"]
     ]
     return found
+
+
+def fold(path: str) -> str:
+    """macOS volumes ignore case by default, so `.claude/Settings.json` is settings.json; realpath
+    keeps the case as written. (This may over-flag on a rare case-sensitive volume.)"""
+    return path.lower() if sys.platform == "darwin" else path

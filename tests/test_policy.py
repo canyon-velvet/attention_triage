@@ -69,6 +69,7 @@ def test_version_changes_when_a_setting_changes():
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [1]}\n",
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [../shared]}\n",
         "version: 1\nrules:\n  config_edit: {extra_protected_paths: [.zshrc]}\n",
+        'version: 1\nrules:\n  config_edit: {extra_protected_paths: ["/a\\0b"]}\n',  # a NUL
     ],
 )
 def test_an_invalid_policy_is_rejected(text):

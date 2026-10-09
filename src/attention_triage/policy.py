@@ -92,7 +92,7 @@ def parse(text: str) -> tuple[dict, str]:
             paths = settings.get(key, [])
             # A relative path would resolve against whichever dir the hook happens to run in.
             if not isinstance(paths, list) or not all(
-                isinstance(p, str) and p.startswith(("/", "~")) for p in paths
+                isinstance(p, str) and p.startswith(("/", "~")) and "\0" not in p for p in paths
             ):
                 raise PolicyError(f"`{rule_id}.{key}` must be a list of absolute or ~ paths")
         normalized["rules"][rule_id] = settings
