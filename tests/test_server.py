@@ -1,3 +1,4 @@
+import re
 from contextlib import closing
 
 import pytest
@@ -40,6 +41,14 @@ def test_other_hosts_are_refused():
     """DNS rebinding: a web page can point its own name at 127.0.0.1 and read the API as
     same-origin. Its requests still carry that name in the Host header."""
     assert client("attacker.example").get("/api/digest").status_code == 400
+    assert client("attacker.example").get("/").status_code == 400
+
+
+def test_the_inbox_page_and_its_assets_are_served():
+    page = client().get("/")
+    assert page.status_code == 200 and '<div id="root">' in page.text
+    [script] = re.findall(r'src="(/assets/[^"]+\.js)"', page.text)
+    assert client().get(script).status_code == 200
 
 
 def test_ui_ingests_and_flags_the_spool_then_serves_on_loopback(monkeypatch):
