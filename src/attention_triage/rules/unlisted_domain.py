@@ -3,7 +3,7 @@
 WebFetch names its URL, so it is checked reliably.
 """
 
-from urllib.parse import urlsplit
+import re
 
 
 def check(event: dict, settings: dict) -> dict | None:
@@ -13,22 +13,29 @@ def check(event: dict, settings: dict) -> dict | None:
         or not event["target"]
     ):
         return None
-    name = host(event["target"])
-    if not name or allowed(name, settings["allowed_domains"]):
+    unlisted = [h for h in hosts(event["target"]) if not allowed(h, settings["allowed_domains"])]
+    if not unlisted:
         return None
     return {
         "reason": "The agent asked to fetch from a host that isn't in allowed_domains.",
         "label": "",
-        "evidence": {"hosts": [name]},
+        "evidence": {"hosts": unlisted},
     }
 
 
-def host(url: str) -> str | None:
-    try:
-        name = urlsplit(url).hostname  # lowercased, without the port or `user:password@`
-    except ValueError:  # e.g. an unclosed `[` IPv6 address, which can't be fetched either
-        return None
-    return name.rstrip(".") if name else None  # `github.com.` is github.com
+def hosts(url: str) -> list[str]:
+    """The hosts a URL may reach, read by hand rather than with urlsplit, which disagrees with
+    browsers and curl on odd URLs and raises on some (a redacted `user:[REDACTED]@`). Browsers'
+    URL rules (WebFetch) end the host at a `\\`; curl reads it as part of the user name. Either
+    reading counts. The host follows the last `@`, without its port or a trailing dot."""
+    rest = url.partition("://")[2] or url
+    found = []
+    for ends in (r"[/?#\\]", r"[/?#]"):
+        name = re.split(ends, rest, maxsplit=1)[0].rpartition("@")[2]
+        name = name[1:].partition("]")[0] if name.startswith("[") else name.partition(":")[0]
+        if (name := name.lower().rstrip(".")) and name not in found:
+            found.append(name)
+    return found
 
 
 def allowed(host: str, domains: list[str]) -> bool:

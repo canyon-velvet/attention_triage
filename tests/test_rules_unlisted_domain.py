@@ -76,6 +76,11 @@ def test_listed_hosts_are_allowed(url):
             "raw.githubusercontent.com.evil.example",
         ),
         ("https://github.com@evil.example/x", "evil.example"),  # user info, not the host
+        ("https://evil.example\\@github.com/", "evil.example"),  # WebFetch reads `\` as `/`
+        ("https://evil.example\\.githubusercontent.com/", "evil.example"),
+        ("https://bob:[REDACTED]@evil.example/r.git", "evil.example"),  # a redacted password
+        ("https://a[b]@evil.example/", "evil.example"),
+        ("https://u／x@evil.example/", "evil.example"),  # a fullwidth `/` in the user name
     ],
 )
 def test_look_alike_hosts_are_flagged(url, host):
@@ -83,8 +88,9 @@ def test_look_alike_hosts_are_flagged(url, host):
     assert flag["evidence"] == {"hosts": [host]}
 
 
-def test_a_malformed_url_does_not_crash():
-    assert r4(call("WebFetch", "http://[::1/x")) == []
+def test_a_malformed_url_is_flagged_not_skipped():
+    [flag] = r4(call("WebFetch", "http://[::1/x"))
+    assert flag["evidence"] == {"hosts": ["::1"]}
 
 
 def test_allowed_domains_replace_the_defaults():
