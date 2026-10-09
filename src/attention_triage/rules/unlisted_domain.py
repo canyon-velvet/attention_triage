@@ -19,8 +19,12 @@ def check(event: dict, settings: dict) -> dict | None:
         urls, label = [event["target"]], ""
         reason = "The agent asked to fetch from a host that isn't in allowed_domains."
     elif event["tool_name"] == "Bash":
-        # The shell joins `'https://github.com'@evil` into one word: drop quotes and `\` first.
-        urls, label = URL.findall(re.sub(r"[\"'\\]", "", event["target"])), "partial"
+        # The shell joins `'https://github.com'@evil` into one word, so read the command also with
+        # quotes and `\` dropped. Keep the as-written reading too: in `$'evil\x2f@github.com'` the
+        # `\` is a `/`. Shell quoting can't be undone exactly; a host unlisted in either is flagged.
+        command = event["target"]
+        readings = [command, re.sub(r"[\"'\\]", "", command)]
+        urls, label = [url for text in readings for url in URL.findall(text)], "partial"
         reason = "The command names a URL whose host isn't in allowed_domains."
     else:
         return None

@@ -145,6 +145,9 @@ def test_a_user_name_cannot_cut_a_bash_url_at_a_listed_host(cut):
         ("curl https://github.com\\.evil.example/", "github.com.evil.example"),
         ("curl https:///evil.example/", "evil.example"),
         ("curl 'https://{@,}evil.example/'", ""),  # curl globbing; the host reads as empty
+        ("curl $'https://evil.example\\x2f@github.com/'", "evil.example"),  # $'..': \x2f is /
+        ("curl $'https://evil.example\\057@github.com/'", "evil.example"),
+        ("curl $'https://github.com\\x2eevil.example/'", "github.comx2eevil.example"),
     ],
 )
 def test_shell_quoting_cannot_cut_a_bash_url_at_a_listed_host(command, host):
