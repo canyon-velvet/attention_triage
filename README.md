@@ -58,7 +58,7 @@ On every event the hook:
 
 If the database is unavailable, the event goes to `spool.jsonl` and is stored on the next successful run, so failures become delays, not loss.
 
-**Privacy.** Triage stores what ran and where, not contents. File contents become a hash, a size and a short preview; tool output is cut to about 2,000 characters; common token formats and `key/secret/token/password = value` patterns are masked before anything is written. Events older than 30 days (configurable) are deleted each time `triage ui` starts, or when you run `triage purge`.
+**Privacy.** Triage stores what ran and where, not contents. File contents become a hash, a size and a short preview; tool output is cut to about 2,000 characters; common token formats and `key/secret/token/password = value` patterns are masked before anything is written. Events older than 7 days (configurable) are deleted each time `triage ui` starts, or when you run `triage purge`.
 
 ## Commands
 
