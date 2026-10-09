@@ -1,0 +1,68 @@
+import pytest
+
+from attention_triage import policy
+
+
+@pytest.fixture(autouse=True)
+def home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    return tmp_path
+
+
+def write_policy(text: str) -> None:
+    policy.path().parent.mkdir()
+    policy.path().write_text(text)
+
+
+def test_a_missing_policy_is_created_with_the_defaults():  # and its data dir
+    loaded, version = policy.load()
+    assert policy.path().read_text() == policy.DEFAULT_POLICY
+    assert loaded["rules"] == {"sandbox_bypass": {"enabled": True, "severity": "high"}}
+    assert version == policy.parse(policy.DEFAULT_POLICY)[1]
+
+
+def test_an_existing_policy_is_read_not_replaced():
+    write_policy("version: 1\nrules:\n  sandbox_bypass:\n    severity: review\n")
+    loaded, _ = policy.load()
+    assert loaded["rules"]["sandbox_bypass"] == {"enabled": True, "severity": "review"}
+    assert "review" in policy.path().read_text()
+
+
+@pytest.mark.parametrize("rules_yaml", ["", "rules:\n", "rules:\n  sandbox_bypass:\n"])
+def test_a_rule_left_out_gets_its_defaults(rules_yaml):
+    assert policy.parse("version: 1\n" + rules_yaml) == policy.parse(policy.DEFAULT_POLICY)
+
+
+def test_version_ignores_comments_layout_and_key_order():
+    a = "version: 1\nrules:\n  sandbox_bypass:\n    enabled: true\n    severity: review\n"
+    b = "# mine\nrules: {sandbox_bypass: {severity: review,   enabled: true}}\nversion: 1\n"
+    assert policy.parse(a)[1] == policy.parse(b)[1]
+
+
+def test_version_changes_when_a_setting_changes():
+    a = "version: 1\nrules:\n  sandbox_bypass:\n    enabled: true\n"
+    b = "version: 1\nrules:\n  sandbox_bypass:\n    enabled: false\n"
+    assert policy.parse(a)[1] != policy.parse(b)[1]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "version: [1",  # not YAML
+        "- 1\n",  # not a mapping
+        "rules: {}\n",  # no version
+        "version: 2\n",
+        "version: 1\nretention: 3\n",  # unknown key
+        "version: 1\nrules: [sandbox_bypass]\n",
+        "version: 1\nrules: false\n",
+        "version: 1\nrules:\n  sandbox_bypass: false\n",  # must not mean "defaults"
+        "version: 1\nrules:\n  sandbox_bypas: {enabled: false}\n",  # typo'd rule id
+        "version: 1\nrules:\n  sandbox_bypass: true\n",
+        "version: 1\nrules:\n  sandbox_bypass: {enabled: 'no'}\n",
+        "version: 1\nrules:\n  sandbox_bypass: {severity: low}\n",
+        "version: 1\nrules:\n  sandbox_bypass: {enable: false}\n",  # typo'd setting
+    ],
+)
+def test_an_invalid_policy_is_rejected(text):
+    with pytest.raises(policy.PolicyError):
+        policy.parse(text)
