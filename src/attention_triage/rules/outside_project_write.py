@@ -1,29 +1,19 @@
 """R1 `outside_project_write`: a file tool wrote outside the project and the dirs agents may use.
 
-Paths are resolved when the event is captured, on this machine, so a symlink or `..` that leads out
-of the project is caught. Writes made by Bash commands are not seen (v1 gap, SPEC.md §5).
+A symlink or `..` that leads out of the project is caught (rules/paths.py). Writes made by Bash
+commands are not seen (v1 gap, SPEC.md §5).
 """
 
 import os
 from pathlib import Path
 
-TOOLS = {"Write", "Edit", "NotebookEdit"}
+from attention_triage.rules.paths import written_path
+
 TEMP_DIRS = ["/tmp", "/private/tmp", "/var/folders"]
 
 
 def check(event: dict, settings: dict) -> dict | None:
-    if (
-        event["event_type"] != "tool_call"
-        or event["tool_name"] not in TOOLS
-        or not event["target"]
-        or not event["cwd"]
-    ):
-        return None
-    # realpath follows symlinks and collapses `..`, also for a file (or dirs) not created yet.
-    target = os.path.join(event["cwd"], os.path.expanduser(event["target"]))
-    try:
-        path = Path(os.path.realpath(target))
-    except ValueError:  # a NUL in the path: no file can be written there
+    if not (path := written_path(event)):
         return None
     if is_memory(path) or any(path.is_relative_to(root) for root in allowed_roots(event, settings)):
         return None
