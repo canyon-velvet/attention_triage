@@ -16,6 +16,11 @@ test("a flag item shows what ran, why, the rule and where", () => {
   expect(screen.getByRole("time")).toHaveAttribute("datetime", flag.time);
 });
 
+test("a flag without a label shows no empty label tag", () => {
+  const { container } = render(<FlagItem flag={{ ...flag, label: "" }} />);
+  expect(container.querySelector(".label")).toBeNull();
+});
+
 test("captured commands render as text, never as HTML", () => {
   const html = '<img src=x onerror="alert(1)">';
   const { container } = render(
