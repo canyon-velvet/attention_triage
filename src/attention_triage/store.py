@@ -31,6 +31,19 @@ COLUMNS = [
     "install_scope",
 ]
 
+FLAG_COLUMNS = [
+    "event_key",
+    "rule_id",
+    "severity",
+    "reason",
+    "label",
+    "evidence",
+    "policy_version",
+    "status",
+    "created_at",
+    "updated_at",
+]
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY,
@@ -59,6 +72,21 @@ CREATE TABLE IF NOT EXISTS drift (
     first_seen TEXT NOT NULL,
     PRIMARY KEY (hook_event, field, problem)
 );
+CREATE TABLE IF NOT EXISTS flags (
+    id INTEGER PRIMARY KEY,
+    event_key TEXT NOT NULL REFERENCES events (dedup_key) ON DELETE CASCADE,
+    rule_id TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    label TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    policy_version TEXT NOT NULL,
+    status TEXT NOT NULL,
+    suppression_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (event_key, rule_id)
+);
 """
 
 
@@ -67,11 +95,13 @@ def data_dir() -> Path:
 
 
 def connect() -> sqlite3.Connection:
-    """Open the DB in WAL mode with a 2 s busy timeout, creating it if needed."""
+    """Open the DB in WAL mode with a 2 s busy timeout, creating it if needed. Foreign keys are on,
+    so purging an event deletes its flags."""
     path = data_dir() / "triage.db"
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, timeout=2.0)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
     return conn
 
@@ -85,6 +115,21 @@ def insert_event(conn: sqlite3.Connection, event: dict) -> bool:
     )
     conn.commit()
     return cursor.rowcount == 1
+
+
+def insert_flags(conn: sqlite3.Connection, flags: list[dict]) -> None:
+    """Store flags; one per event and rule, so a repeat is ignored."""
+    conn.executemany(
+        f"INSERT OR IGNORE INTO flags ({', '.join(FLAG_COLUMNS)}) VALUES ({', '.join('?' * len(FLAG_COLUMNS))})",
+        [
+            [
+                json.dumps(f[c], ensure_ascii=False) if c == "evidence" else f[c]
+                for c in FLAG_COLUMNS
+            ]
+            for f in flags
+        ],
+    )
+    conn.commit()
 
 
 def record_drift(
@@ -128,14 +173,16 @@ def spool(event: dict) -> None:
         f.write("\n" + json.dumps(event, ensure_ascii=False) + "\n")
 
 
-def ingest_spool(conn: sqlite3.Connection) -> None:
+def ingest_spool(conn: sqlite3.Connection) -> list[dict]:
     """Store spooled events (dedup makes repeats harmless), then delete the spool. If storing
-    fails, the spool stays for the next run."""
+    fails, the spool stays for the next run. Returns every spooled event, repeats included: one
+    stored by a run that failed before flagging it still needs its flags."""
+    events = []
     if not spool_path().exists():
-        return
+        return events
     with spool_lock():
         if not spool_path().exists():  # another hook ingested it while we waited
-            return
+            return events
         # Bytes, split only on \n and \r: str.splitlines() would also split an event on U+2028,
         # which json.dumps(ensure_ascii=False) leaves unescaped.
         for line in spool_path().read_bytes().splitlines():
@@ -144,4 +191,6 @@ def ingest_spool(conn: sqlite3.Connection) -> None:
             except ValueError:  # blank, or cut short (even mid-character) by a killed hook:
                 continue  # failing on it would wedge every ingest
             insert_event(conn, event)
+            events.append(event)
         spool_path().unlink()
+    return events
