@@ -27,13 +27,15 @@ def hosts(url: str) -> list[str]:
     """The hosts a URL may reach, read by hand rather than with urlsplit, which disagrees with
     browsers and curl on odd URLs and raises on some (a redacted `user:[REDACTED]@`). Browsers'
     URL rules (WebFetch) end the host at a `\\`; curl reads it as part of the user name. Either
-    reading counts. The host follows the last `@`, without its port or a trailing dot."""
-    rest = url.partition("://")[2] or url
+    reading counts. The host follows the last `@`, without its port or a trailing dot. An empty
+    host is kept, so it is reported rather than passing as allowed."""
+    # Browsers skip any run of `/` and `\` after the scheme: `https:/evil` and `https:///evil` are evil.
+    rest = re.sub(r"^\s*[a-z][a-z0-9+.-]*:[/\\]*", "", url, flags=re.IGNORECASE)
     found = []
     for ends in (r"[/?#\\]", r"[/?#]"):
         name = re.split(ends, rest, maxsplit=1)[0].rpartition("@")[2]
         name = name[1:].partition("]")[0] if name.startswith("[") else name.partition(":")[0]
-        if (name := name.lower().rstrip(".")) and name not in found:
+        if (name := name.lower().rstrip(".")) not in found:
             found.append(name)
     return found
 

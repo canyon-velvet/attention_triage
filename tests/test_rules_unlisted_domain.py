@@ -81,11 +81,20 @@ def test_listed_hosts_are_allowed(url):
         ("https://bob:[REDACTED]@evil.example/r.git", "evil.example"),  # a redacted password
         ("https://a[b]@evil.example/", "evil.example"),
         ("https://u／x@evil.example/", "evil.example"),  # a fullwidth `/` in the user name
+        ("https:/evil.example/?x://github.com/", "evil.example"),  # browsers skip any / or \
+        ("https:evil.example/x://github.com", "evil.example"),
+        ("https:\\\\evil.example\\?q=://github.com", "evil.example"),
+        ("https:///evil.example/", "evil.example"),
     ],
 )
 def test_look_alike_hosts_are_flagged(url, host):
     [flag] = r4(call("WebFetch", url))
-    assert flag["evidence"] == {"hosts": [host]}
+    assert host in flag["evidence"]["hosts"]  # the curl reading may add a second, odd host
+
+
+def test_an_empty_host_is_flagged():
+    [flag] = r4(call("WebFetch", "https://@/x"))
+    assert flag["evidence"] == {"hosts": [""]}
 
 
 def test_a_malformed_url_is_flagged_not_skipped():
