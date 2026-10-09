@@ -70,14 +70,17 @@ def hook_scripts(settings_file: str, project_root: str) -> list[str]:
     for command in commands:
         command = str(command).replace("${CLAUDE_PROJECT_DIR}", project_root)
         command = command.replace("$CLAUDE_PROJECT_DIR", project_root)
+        command = os.path.expandvars(command)  # $HOME etc.; the hook has Claude Code's environment
         try:
             words = shlex.split(command)
         except ValueError:  # unbalanced quotes
             words = command.split()
         # A relative word is read from the project root. A NUL would make realpath raise.
-        scripts += [
+        paths = [
             os.path.join(project_root, os.path.expanduser(word))
             for word in words
             if "/" in word and "\0" not in word
         ]
+        # A dir (`cd $CLAUDE_PROJECT_DIR`, `tr / _`) would protect everything in it.
+        scripts += [path for path in paths if not os.path.isdir(path)]
     return scripts

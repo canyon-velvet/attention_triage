@@ -142,6 +142,22 @@ def test_project_settings_hook_scripts_are_flagged(project):
     assert len(r3(write(project / "tools" / "my hook.sh", project))) == 1
 
 
+def test_env_vars_in_hook_commands_are_expanded(home, project):
+    hook = {"hooks": [{"type": "command", "command": "${HOME}/bin/guard.sh"}]}
+    (home / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"Stop": [hook]}}))
+    assert len(r3(write(home / "bin" / "guard.sh", project))) == 1
+
+
+@pytest.mark.parametrize(
+    "command", ['cd "$CLAUDE_PROJECT_DIR" && npm run lint', "jq -r .file_path | tr / _", "ls ~/"]
+)
+def test_dirs_named_in_hook_commands_are_not_protected(home, project, command):
+    hook = {"hooks": [{"type": "command", "command": command}]}
+    (home / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"Stop": [hook]}}))
+    assert r3(write(project / "src" / "x.py", project)) == []
+    assert r3(write(home / "notes.txt", project)) == []
+
+
 @pytest.mark.parametrize(
     "text", ["{not json", '{"hooks": []}', '{"hooks": {"Stop": [{"hooks": [1]}]}}', "[]"]
 )
