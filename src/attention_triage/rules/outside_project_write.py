@@ -20,7 +20,11 @@ def check(event: dict, settings: dict) -> dict | None:
     ):
         return None
     # realpath follows symlinks and collapses `..`, also for a file (or dirs) not created yet.
-    path = Path(os.path.realpath(os.path.join(event["cwd"], event["target"])))
+    target = os.path.join(event["cwd"], os.path.expanduser(event["target"]))
+    try:
+        path = Path(os.path.realpath(target))
+    except ValueError:  # a NUL in the path: no file can be written there
+        return None
     if is_memory(path) or any(path.is_relative_to(root) for root in allowed_roots(event, settings)):
         return None
     return {

@@ -84,8 +84,11 @@ def parse(text: str) -> tuple[dict, str]:
         if settings["severity"] not in SEVERITIES:
             raise PolicyError(f"`{rule_id}.severity` must be one of: {', '.join(SEVERITIES)}")
         paths = settings.get("allowed_paths", [])
-        if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths):
-            raise PolicyError(f"`{rule_id}.allowed_paths` must be a list of paths")
+        # A relative path would resolve against whichever dir the hook happens to run in.
+        if not isinstance(paths, list) or not all(
+            isinstance(p, str) and p.startswith(("/", "~")) for p in paths
+        ):
+            raise PolicyError(f"`{rule_id}.allowed_paths` must be a list of absolute or ~ paths")
         normalized["rules"][rule_id] = settings
     canonical = json.dumps(normalized, sort_keys=True)
     return normalized, hashlib.sha256(canonical.encode()).hexdigest()[:12]

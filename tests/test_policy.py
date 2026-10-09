@@ -66,6 +66,7 @@ def test_version_changes_when_a_setting_changes():
         "version: 1\nrules:\n  sandbox_bypass: {enable: false}\n",  # typo'd setting
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: ~/x}\n",  # not a list
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [1]}\n",
+        "version: 1\nrules:\n  outside_project_write: {allowed_paths: [../shared]}\n",
     ],
 )
 def test_an_invalid_policy_is_rejected(text):

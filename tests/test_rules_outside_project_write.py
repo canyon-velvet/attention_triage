@@ -69,10 +69,15 @@ def test_each_file_tool_is_checked(tool):
         "/Users/alice/Dev/proj-old/x.txt",  # a sibling sharing the project's name as a prefix
         "/Users/alice/.claude/settings.json",
         "/Users/alice/.claude/projects/-Users-alice-Dev-proj/s1.jsonl",  # a transcript, not memory
+        "~/.zshrc",  # the home dir, not <project>/~
     ],
 )
 def test_writes_outside_the_project_are_flagged(path):
     assert len(r1(write(path))) == 1
+
+
+def test_a_path_with_a_nul_is_not_flagged_and_does_not_crash():
+    assert r1(write("/etc/x\0y")) == []
 
 
 @pytest.mark.parametrize(
