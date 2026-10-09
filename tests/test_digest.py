@@ -17,9 +17,11 @@ def conn(tmp_path, monkeypatch):
         yield conn
 
 
-def bash(conn, project, session, minute, severity="high", bypass=True, hook="PreToolUse"):
+def bash(
+    conn, project, session, minute, severity="high", bypass=True, hook="PreToolUse", repo=None
+):
     """Store a Bash call running `<session>-<minute>`, flagged at `severity` when it bypasses the
-    sandbox."""
+    sandbox. `repo` stands in for a worktree's main checkout (see test_normalize)."""
     command = f"{session}-{minute}"
     event = normalize(
         {
@@ -36,7 +38,7 @@ def bash(conn, project, session, minute, severity="high", bypass=True, hook="Pre
         },
         now=T0 + timedelta(minutes=minute),
     )
-    store.insert_event(conn, event)
+    store.insert_event(conn, {**event, "repo_root": repo or event["repo_root"]})
     text = policy.DEFAULT_POLICY.replace("severity: high", f"severity: {severity}")
     store.insert_flags(conn, rules.evaluate(event, *policy.parse(text), now=T0))
 
@@ -74,6 +76,28 @@ def test_open_flags_grouped_by_project_then_session_high_first(conn):
     assert shape(result) == [
         ("/p/b", [("s2", ["s2-0"])]),
         ("/p/a", [("s1", ["s1-2", "s1-1"]), ("s3", ["s3-4"])]),
+    ]
+
+
+def test_worktrees_group_under_their_main_checkout(conn):
+    bash(conn, "/p/other", "s3", 0)
+    bash(conn, "/p/main", "s1", 1)
+    bash(conn, "/p/main/.claude/worktrees/wt", "s1", 2, repo="/p/main")
+    bash(conn, "/elsewhere/wt2", "s2", 3, repo="/p/main")
+    # stored before repo_root existed
+    conn.execute("UPDATE events SET repo_root = NULL WHERE project_root = '/p/other'")
+
+    result = digest(conn)
+
+    assert shape(result) == [
+        ("/p/other", [("s3", ["s3-0"])]),
+        ("/p/main", [("s1", ["s1-1", "s1-2"]), ("s2", ["s2-3"])]),
+    ]
+    [main] = [p for p in result["projects"] if p["project"] == "/p/main"]
+    assert [f["project"] for s in main["sessions"] for f in s["flags"]] == [
+        "/p/main",
+        "/p/main/.claude/worktrees/wt",
+        "/elsewhere/wt2",
     ]
 
 
