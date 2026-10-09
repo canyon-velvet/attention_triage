@@ -1,10 +1,12 @@
-"""`triage ui`: the review API (SPEC.md §6) on 127.0.0.1."""
+"""`triage ui`: the review inbox and its API (SPEC.md §6) on 127.0.0.1."""
 
 from contextlib import closing
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from attention_triage import hook, store
 from attention_triage.digest import digest
@@ -28,6 +30,10 @@ def get_digest() -> dict:
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
+
+
+# The inbox page, built from web/ (`pnpm build`). Mounted last so the /api routes match first.
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True))
 
 
 def serve(port: int) -> None:

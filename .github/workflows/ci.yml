@@ -17,3 +17,22 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run pytest -q
+      # Web UI (web/). Its build is committed in src/attention_triage/static/, so check it's fresh.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm typecheck
+        working-directory: web
+      - run: pnpm test
+        working-directory: web
+      - run: pnpm build
+        working-directory: web
+      - name: The committed UI build matches web/ (else run `pnpm build` in web/ and commit)
+        run: test -z "$(git status --porcelain src/attention_triage/static)"
