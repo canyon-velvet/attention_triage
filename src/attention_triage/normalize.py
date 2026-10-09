@@ -13,6 +13,7 @@ Supporting another agent (Codex, Cursor, ...) means adding a sibling adapter, no
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -83,6 +84,7 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
         text(payload.get("tool_use_id")),
         text(payload.get("cwd")),
     )
+    root = project_root(cwd)
     summary = {key: payload[key] for key in SUMMARY_KEYS if key in payload}
     if tool_input.get("dangerouslyDisableSandbox") is True:  # Bash only; absent when not set
         summary["sandbox_disabled"] = True
@@ -96,7 +98,8 @@ def normalize(payload: dict, now: datetime | None = None) -> dict:
         "target_kind": target_kind,
         "target": text(target),
         "stated_reason": text(tool_input.get("description")),
-        "project_root": project_root(cwd),
+        "project_root": root,
+        "repo_root": repo_root(root),
         "cwd": cwd,
         "ts": (now or datetime.now(UTC)).isoformat(timespec="milliseconds"),
         "summary": summary,
@@ -151,3 +154,21 @@ def project_root(cwd: str | None) -> str | None:
         if (candidate / ".git").exists():
             return str(candidate)
     return cwd
+
+
+def repo_root(project_root: str | None) -> str | None:
+    """The main checkout when project_root is a git worktree, so the inbox groups a worktree's
+    flags with its repo; else project_root itself. A worktree's .git is a file naming its gitdir
+    (<main>/.git/worktrees/<name>), whose `commondir` leads back to <main>/.git. Read at capture:
+    worktrees are often deleted before their events are reviewed."""
+    if not project_root:
+        return project_root
+    try:
+        line = Path(project_root, ".git").read_text().strip()
+        gitdir = Path(project_root, line.removeprefix("gitdir:").strip())
+        common = os.path.normpath(gitdir / (gitdir / "commondir").read_text().strip())
+    except (OSError, ValueError):  # a .git dir, no .git, a submodule (no commondir), or garbage
+        return project_root
+    # A bare repo (foo.git) or a --separate-git-dir has no checkout above it: the git dir itself
+    # names the repo. Its parent would merge every repo kept in the same folder.
+    return os.path.dirname(common) if os.path.basename(common) == ".git" else common

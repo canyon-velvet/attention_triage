@@ -23,6 +23,7 @@ COLUMNS = [
     "target",
     "stated_reason",
     "project_root",
+    "repo_root",
     "cwd",
     "ts",
     "summary",
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS events (
     target TEXT,
     stated_reason TEXT,
     project_root TEXT,
+    repo_root TEXT,
     cwd TEXT,
     ts TEXT NOT NULL,
     summary TEXT NOT NULL,
@@ -103,15 +105,22 @@ def connect() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    if "repo_root" not in [c[1] for c in conn.execute("PRAGMA table_info(events)")]:
+        try:  # a DB created before repo_root existed
+            conn.execute("ALTER TABLE events ADD COLUMN repo_root TEXT")
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e):  # else a parallel hook added it first
+                raise
     return conn
 
 
 def insert_event(conn: sqlite3.Connection, event: dict) -> bool:
-    """Store a normalized event once. Returns False if its dedup_key is already stored."""
+    """Store a normalized event once. Returns False if its dedup_key is already stored. A missing
+    field is stored as NULL: an event spooled before repo_root existed has none."""
     row = {**event, "summary": json.dumps(event["summary"], ensure_ascii=False)}
     cursor = conn.execute(
         f"INSERT OR IGNORE INTO events ({', '.join(COLUMNS)}) VALUES ({', '.join('?' * len(COLUMNS))})",
-        [row[column] for column in COLUMNS],
+        [row.get(column) for column in COLUMNS],
     )
     conn.commit()
     return cursor.rowcount == 1

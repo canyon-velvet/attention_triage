@@ -1,9 +1,10 @@
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from attention_triage.normalize import EVENT_TYPES, normalize, project_root
+from attention_triage.normalize import EVENT_TYPES, normalize, project_root, repo_root
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
@@ -18,6 +19,7 @@ FIELDS = {
     "target",
     "stated_reason",
     "project_root",
+    "repo_root",
     "cwd",
     "ts",
     "summary",
@@ -104,3 +106,43 @@ def test_project_root_is_the_git_root_else_cwd(tmp_path):
     nested.mkdir(parents=True)
     assert project_root(str(nested)) == str(tmp_path / "repo")
     assert project_root(str(tmp_path)) == str(tmp_path)
+
+
+def git(*args, cwd):
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=cwd, check=True)
+
+
+def test_repo_root_of_a_worktree_is_its_main_checkout(tmp_path):
+    main = tmp_path / "main"
+    main.mkdir()
+    git("init", "-q", cwd=main)
+    git("commit", "-q", "--allow-empty", "-m", "x", cwd=main)
+    git("worktree", "add", "-q", str(main / "inside"), cwd=main)
+    git("worktree", "add", "-q", str(tmp_path / "outside"), cwd=main)
+    for worktree in [main / "inside", tmp_path / "outside"]:
+        (worktree / "src").mkdir()
+        event = normalize({"hook_event_name": "Stop", "cwd": str(worktree / "src")})
+        assert event["project_root"] == str(worktree)  # R1's boundary stays the worktree
+        assert event["repo_root"] == str(main)
+    assert repo_root(str(main)) == str(main)
+
+
+def test_worktrees_of_bare_repos_in_one_folder_stay_apart(tmp_path):
+    """A bare repo has no checkout above its git dir, so the git dir itself names the repo."""
+    main = tmp_path / "main"
+    main.mkdir()
+    git("init", "-q", cwd=main)
+    git("commit", "-q", "--allow-empty", "-m", "x", cwd=main)
+    for name in ["foo", "bar"]:
+        git("clone", "-q", "--bare", str(main), str(tmp_path / f"{name}.git"), cwd=tmp_path)
+        git("worktree", "add", "-q", str(tmp_path / f"{name}-wt"), cwd=tmp_path / f"{name}.git")
+        assert repo_root(str(tmp_path / f"{name}-wt")) == str(tmp_path / f"{name}.git")
+
+
+@pytest.mark.parametrize("dot_git", [b"gitdir: ../.git/modules/sub", b"garbage", b"\xff\xfe"])
+def test_repo_root_is_the_project_root_unless_dot_git_leads_to_a_main_checkout(tmp_path, dot_git):
+    """A submodule's .git file points to a gitdir without a commondir; a broken one, nowhere."""
+    (tmp_path / ".git").write_bytes(dot_git)
+    assert repo_root(str(tmp_path)) == str(tmp_path)
+    assert repo_root(str(tmp_path / "no-git")) == str(tmp_path / "no-git")
+    assert repo_root(None) is None

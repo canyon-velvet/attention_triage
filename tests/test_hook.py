@@ -295,3 +295,23 @@ def test_purging_an_event_deletes_its_flags(tmp_path, monkeypatch):
         store.insert_flags(conn, rules.evaluate(event, *policy.parse(policy.DEFAULT_POLICY)))
         store.purge(conn)
     assert rows(tmp_path) == [] and rows(tmp_path, "flags") == []
+
+
+def test_a_db_from_before_repo_root_gains_the_column(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    db = tmp_path / ".attention-triage" / "triage.db"
+    db.parent.mkdir()
+    with closing(sqlite3.connect(db)) as conn:
+        conn.executescript(store.SCHEMA.replace("    repo_root TEXT,\n", ""))
+    for _ in range(2):  # and connecting again doesn't try to add it twice
+        with closing(store.connect()) as conn:
+            assert "repo_root" in [c[1] for c in conn.execute("PRAGMA table_info(events)")]
+
+
+def test_an_event_spooled_before_repo_root_existed_is_still_stored(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    old = normalize(redact(json.loads(BYPASS.read_text())))
+    del old["repo_root"]
+    store.spool(old)
+    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    assert len(rows(tmp_path)) == 2 and spool_lines(tmp_path) == []
