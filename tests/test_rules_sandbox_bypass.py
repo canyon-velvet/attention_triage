@@ -24,7 +24,8 @@ def event(name: str) -> dict:
 
 
 def evaluate(name: str, policy_text: str = policy.DEFAULT_POLICY) -> list[dict]:
-    return rules.evaluate(event(name), *policy.parse(policy_text), now=NOW)
+    flags = rules.evaluate(event(name), *policy.parse(policy_text), now=NOW)
+    return [f for f in flags if f["rule_id"] == "sandbox_bypass"]
 
 
 def fixture_id(path: Path) -> str:

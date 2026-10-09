@@ -6,9 +6,10 @@ policy.yaml in, the flag's reason, label and evidence out, or None when the even
 
 from datetime import UTC, datetime
 
-from attention_triage.rules import sandbox_bypass
+from attention_triage.rules import outside_project_write, sandbox_bypass
 
 RULES = {
+    "outside_project_write": outside_project_write.check,
     "sandbox_bypass": sandbox_bypass.check,
 }
 

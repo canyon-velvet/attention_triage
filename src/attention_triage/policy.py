@@ -16,6 +16,7 @@ from attention_triage import store
 SEVERITIES = ("high", "review")
 # Settings of each built-in rule when policy.yaml doesn't name it. Each rule's ticket adds its own.
 DEFAULT_RULES = {
+    "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
     "sandbox_bypass": {"enabled": True, "severity": "high"},
 }
 
@@ -24,6 +25,10 @@ DEFAULT_POLICY = """\
 # them. severity: high | review
 version: 1
 rules:
+  outside_project_write:
+    enabled: true
+    severity: high
+    allowed_paths: []  # dirs outside the project the agent may write to, e.g. ~/.cache/myapp
   sandbox_bypass:
     enabled: true
     severity: high
@@ -78,6 +83,9 @@ def parse(text: str) -> tuple[dict, str]:
             raise PolicyError(f"`{rule_id}.enabled` must be true or false")
         if settings["severity"] not in SEVERITIES:
             raise PolicyError(f"`{rule_id}.severity` must be one of: {', '.join(SEVERITIES)}")
+        paths = settings.get("allowed_paths", [])
+        if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths):
+            raise PolicyError(f"`{rule_id}.allowed_paths` must be a list of paths")
         normalized["rules"][rule_id] = settings
     canonical = json.dumps(normalized, sort_keys=True)
     return normalized, hashlib.sha256(canonical.encode()).hexdigest()[:12]
