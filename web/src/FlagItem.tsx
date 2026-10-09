@@ -12,7 +12,7 @@ export function FlagItem({ flag }: { flag: Flag }) {
       <div className="tags">
         <span className="rule">{flag.rule}</span>
         <span className="severity">{flag.severity}</span>
-        <span className="label">{flag.label}</span>
+        {flag.label && <span className="label">{flag.label}</span>}
       </div>
       <ul className="evidence">
         {Object.entries(flag.evidence).map(([key, value]) => (
