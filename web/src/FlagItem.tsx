@@ -14,6 +14,12 @@ export function FlagItem({ flag }: { flag: Flag }) {
         <span className="severity">{flag.severity}</span>
         {flag.label && <span className="label">{flag.label}</span>}
       </div>
+      {flag.label === "partial" && (
+        <p className="caveat">
+          Shell network access is not fully visible: only http(s) URLs written in the command were
+          checked, and a URL may only be text.
+        </p>
+      )}
       <ul className="evidence">
         {Object.entries(flag.evidence).map(([key, value]) => (
           <li key={key}>{`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`}</li>

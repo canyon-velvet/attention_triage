@@ -21,6 +21,16 @@ test("a flag without a label shows no empty label tag", () => {
   expect(container.querySelector(".label")).toBeNull();
 });
 
+test("a partial flag says shell network access is not fully visible", () => {
+  render(<FlagItem flag={{ ...flag, label: "partial" }} />);
+  expect(screen.getByText(/shell network access is not fully visible/i)).toBeInTheDocument();
+});
+
+test("other flags carry no visibility caveat", () => {
+  render(<FlagItem flag={flag} />);
+  expect(screen.queryByText(/not fully visible/i)).toBeNull();
+});
+
 test("captured commands render as text, never as HTML", () => {
   const html = '<img src=x onerror="alert(1)">';
   const { container } = render(

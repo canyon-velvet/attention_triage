@@ -53,6 +53,7 @@ ul.flags {
 
 .tool,
 .where,
+.caveat,
 .evidence {
   color: var(--muted);
   font-size: 0.85rem;
