@@ -1,4 +1,5 @@
-"""triage: install and uninstall the capture hook in Claude Code's user settings (ADR-0004)."""
+"""triage: install and uninstall the capture hook in Claude Code's user settings (ADR-0004), and
+serve the review UI."""
 
 import argparse
 import copy
@@ -10,7 +11,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from attention_triage import store
+from attention_triage import server, store
 
 HOOK = "triage-hook"
 TOOL_EVENTS = [
@@ -29,11 +30,15 @@ def main(argv: list[str] | None = None) -> None:
     install_parser = commands.add_parser("install", help="add the capture hook to Claude Code")
     install_parser.add_argument("--dry-run", action="store_true", help="show the diff only")
     commands.add_parser("uninstall", help="remove Triage's hook entries")
+    ui_parser = commands.add_parser("ui", help="serve the review API on 127.0.0.1")
+    ui_parser.add_argument("--port", type=int, default=server.DEFAULT_PORT)
     args = parser.parse_args(argv)
     if args.command == "install":
         install(args.dry_run)
-    else:
+    elif args.command == "uninstall":
         uninstall()
+    else:
+        server.serve(args.port)
 
 
 def install(dry_run: bool) -> None:

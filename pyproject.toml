@@ -5,7 +5,9 @@ description = "Shows the few Claude Code actions that need a human decision."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.143.0",
     "pyyaml>=6.0.3",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -14,6 +16,7 @@ triage-hook = "attention_triage.hook:main"
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.13.1",
     "pytest>=8",
     "ruff>=0.16.10",
 ]
