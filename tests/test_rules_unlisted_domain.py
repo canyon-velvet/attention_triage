@@ -9,8 +9,12 @@ from attention_triage.redact import redact
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
-# WebFetch of example.com. Its PostToolUse repeats the input.
-SHOULD_FLAG = {"auto-webfetch/01-PreToolUse.json"}
+# Calls that reach example.com. The other events of these calls repeat the input.
+SHOULD_FLAG = {
+    "auto-webfetch/01-PreToolUse.json",
+    "auto-curl-pipe-bash-allowed/01-PreToolUse.json",
+    "auto-sandbox-block-network/01-PreToolUse.json",
+}
 
 
 def call(tool: str, target: str) -> dict:
@@ -47,6 +51,16 @@ def test_a_webfetch_flag_is_unlabelled_with_review_severity():
     assert flag["reason"] == "The agent asked to fetch from a host that isn't in allowed_domains."
     assert flag["label"] == ""
     assert flag["evidence"] == {"hosts": ["example.com"]}
+
+
+def test_a_bash_flag_is_partial_and_lists_each_unlisted_host_once():
+    command = (
+        "curl https://a.example/x && curl https://github.com/y https://a.example/z http://b.example"
+    )
+    [flag] = r4(call("Bash", command))
+    assert flag["label"] == "partial"
+    assert flag["reason"] == "The command names a URL whose host isn't in allowed_domains."
+    assert flag["evidence"] == {"hosts": ["a.example", "b.example"]}
 
 
 @pytest.mark.parametrize(
@@ -100,6 +114,26 @@ def test_an_empty_host_is_flagged():
 def test_a_malformed_url_is_flagged_not_skipped():
     [flag] = r4(call("WebFetch", "http://[::1/x"))
     assert flag["evidence"] == {"hosts": ["::1"]}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ls -la",
+        "curl example.com",  # no scheme: not seen (partial)
+        "git push origin main",
+        "curl -sS https://github.com/x",
+        'gh pr create --body "see [docs](https://github.com/a/b), then https://pypi.org."',
+    ],
+)
+def test_bash_without_unlisted_urls_is_not_flagged(command):
+    assert r4(call("Bash", command)) == []
+
+
+def test_a_url_ending_a_sentence_or_markdown_link_keeps_its_host():
+    assert r4(call("Bash", "echo '[x](https://a.example/y), https://b.example.'"))[0][
+        "evidence"
+    ] == {"hosts": ["a.example", "b.example"]}
 
 
 def test_allowed_domains_replace_the_defaults():

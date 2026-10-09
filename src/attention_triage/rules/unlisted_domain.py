@@ -1,26 +1,31 @@
 """R4 `unlisted_domain`: the agent reached a host that isn't in allowed_domains (SPEC.md §5).
 
-WebFetch names its URL, so it is checked reliably.
+WebFetch names its URL, so it is checked reliably. Bash is best-effort, labelled `partial`: only
+`http(s)://` URLs written in the command are seen (not `curl example.com`, `git@host:`, or a URL a
+script builds), and a URL that is only text, like a link in a PR body, is flagged too.
 """
 
 import re
 
+# Stops at quotes, shell operators and `,` (the host is all that matters, and a path rarely has one).
+URL = re.compile(r"https?://[^\s\"'`<>()|;&\\,]+", re.IGNORECASE)
+
 
 def check(event: dict, settings: dict) -> dict | None:
-    if (
-        event["event_type"] != "tool_call"
-        or event["tool_name"] != "WebFetch"
-        or not event["target"]
-    ):
+    if event["event_type"] != "tool_call" or not event["target"]:
         return None
-    unlisted = [h for h in hosts(event["target"]) if not allowed(h, settings["allowed_domains"])]
-    if not unlisted:
+    if event["tool_name"] == "WebFetch":
+        urls, label = [event["target"]], ""
+        reason = "The agent asked to fetch from a host that isn't in allowed_domains."
+    elif event["tool_name"] == "Bash":
+        urls, label = URL.findall(event["target"]), "partial"
+        reason = "The command names a URL whose host isn't in allowed_domains."
+    else:
         return None
-    return {
-        "reason": "The agent asked to fetch from a host that isn't in allowed_domains.",
-        "label": "",
-        "evidence": {"hosts": unlisted},
-    }
+    found = [h for url in urls for h in hosts(url) if not allowed(h, settings["allowed_domains"])]
+    if not found:
+        return None
+    return {"reason": reason, "label": label, "evidence": {"hosts": list(dict.fromkeys(found))}}
 
 
 def hosts(url: str) -> list[str]:
