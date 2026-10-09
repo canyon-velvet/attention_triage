@@ -17,7 +17,10 @@ def write_policy(text: str) -> None:
 def test_a_missing_policy_is_created_with_the_defaults():  # and its data dir
     loaded, version = policy.load()
     assert policy.path().read_text() == policy.DEFAULT_POLICY
-    assert loaded["rules"] == {"sandbox_bypass": {"enabled": True, "severity": "high"}}
+    assert loaded["rules"] == {
+        "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
+        "sandbox_bypass": {"enabled": True, "severity": "high"},
+    }
     assert version == policy.parse(policy.DEFAULT_POLICY)[1]
 
 
@@ -61,6 +64,9 @@ def test_version_changes_when_a_setting_changes():
         "version: 1\nrules:\n  sandbox_bypass: {enabled: 'no'}\n",
         "version: 1\nrules:\n  sandbox_bypass: {severity: low}\n",
         "version: 1\nrules:\n  sandbox_bypass: {enable: false}\n",  # typo'd setting
+        "version: 1\nrules:\n  outside_project_write: {allowed_paths: ~/x}\n",  # not a list
+        "version: 1\nrules:\n  outside_project_write: {allowed_paths: [1]}\n",
+        "version: 1\nrules:\n  outside_project_write: {allowed_paths: [../shared]}\n",
     ],
 )
 def test_an_invalid_policy_is_rejected(text):
