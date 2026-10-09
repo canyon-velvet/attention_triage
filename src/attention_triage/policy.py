@@ -19,6 +19,16 @@ DEFAULT_RULES = {
     "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
     "sandbox_bypass": {"enabled": True, "severity": "high"},
     "config_edit": {"enabled": True, "severity": "high", "extra_protected_paths": []},
+    "unlisted_domain": {
+        "enabled": True,
+        "severity": "review",
+        "allowed_domains": [
+            "github.com",
+            "*.githubusercontent.com",
+            "pypi.org",
+            "files.pythonhosted.org",
+        ],
+    },
 }
 
 DEFAULT_POLICY = """\
@@ -37,6 +47,11 @@ rules:
     enabled: true
     severity: high
     extra_protected_paths: []  # more files or dirs to flag edits of, e.g. ~/.zshrc
+  unlisted_domain:
+    enabled: true
+    severity: review
+    # Hosts the agent may reach. `*.example.com` covers subdomains of example.com, not itself.
+    allowed_domains: [github.com, "*.githubusercontent.com", pypi.org, files.pythonhosted.org]
 """
 
 
@@ -95,6 +110,12 @@ def parse(text: str) -> tuple[dict, str]:
                 isinstance(p, str) and p.startswith(("/", "~")) and "\0" not in p for p in paths
             ):
                 raise PolicyError(f"`{rule_id}.{key}` must be a list of absolute or ~ paths")
+        domains = settings.get("allowed_domains", [])
+        # A `*` anywhere but a leading `*.` would never match; report it instead.
+        if not isinstance(domains, list) or not all(
+            isinstance(d, str) and "*" not in d.removeprefix("*.") for d in domains
+        ):
+            raise PolicyError(f"`{rule_id}.allowed_domains` must be a list of hosts or *.hosts")
         normalized["rules"][rule_id] = settings
     canonical = json.dumps(normalized, sort_keys=True)
     return normalized, hashlib.sha256(canonical.encode()).hexdigest()[:12]
