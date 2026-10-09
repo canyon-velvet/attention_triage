@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-# Temporary: SPEC §4 says retention_days from policy.yaml (default 30). Kept short until the
-# review UI exists; revisit with #22, and read it from the policy once #6 lands.
+# Temporary: SPEC §4 reads this from retention_days in policy.yaml (default 7). Deferred until
+# the review UI exists (#22).
 RETENTION_DAYS = 7
 
 COLUMNS = [
