@@ -137,6 +137,21 @@ def test_a_user_name_cannot_cut_a_bash_url_at_a_listed_host(cut):
     assert flag["evidence"] == {"hosts": ["evil.example"]}
 
 
+@pytest.mark.parametrize(
+    "command, host",
+    [
+        ("curl 'https://github.com'@evil.example/", "evil.example"),  # the shell joins the pieces
+        ('curl "https://github.com"evil.example/', "github.comevil.example"),
+        ("curl https://github.com\\.evil.example/", "github.com.evil.example"),
+        ("curl https:///evil.example/", "evil.example"),
+        ("curl 'https://{@,}evil.example/'", ""),  # curl globbing; the host reads as empty
+    ],
+)
+def test_shell_quoting_cannot_cut_a_bash_url_at_a_listed_host(command, host):
+    [flag] = r4(call("Bash", command))
+    assert host in flag["evidence"]["hosts"]
+
+
 def test_a_url_ending_a_sentence_or_markdown_link_keeps_its_host():
     assert r4(call("Bash", "echo '[x](https://a.example/y), https://b.example.'"))[0][
         "evidence"

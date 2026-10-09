@@ -19,7 +19,8 @@ def check(event: dict, settings: dict) -> dict | None:
         urls, label = [event["target"]], ""
         reason = "The agent asked to fetch from a host that isn't in allowed_domains."
     elif event["tool_name"] == "Bash":
-        urls, label = URL.findall(event["target"]), "partial"
+        # The shell joins `'https://github.com'@evil` into one word: drop quotes and `\` first.
+        urls, label = URL.findall(re.sub(r"[\"'\\]", "", event["target"])), "partial"
         reason = "The command names a URL whose host isn't in allowed_domains."
     else:
         return None
