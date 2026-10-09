@@ -18,6 +18,7 @@ SEVERITIES = ("high", "review")
 DEFAULT_RULES = {
     "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
     "sandbox_bypass": {"enabled": True, "severity": "high"},
+    "config_edit": {"enabled": True, "severity": "high", "extra_protected_paths": []},
 }
 
 DEFAULT_POLICY = """\
@@ -32,6 +33,10 @@ rules:
   sandbox_bypass:
     enabled: true
     severity: high
+  config_edit:
+    enabled: true
+    severity: high
+    extra_protected_paths: []  # more files or dirs to flag edits of, e.g. ~/.zshrc
 """
 
 
@@ -83,12 +88,13 @@ def parse(text: str) -> tuple[dict, str]:
             raise PolicyError(f"`{rule_id}.enabled` must be true or false")
         if settings["severity"] not in SEVERITIES:
             raise PolicyError(f"`{rule_id}.severity` must be one of: {', '.join(SEVERITIES)}")
-        paths = settings.get("allowed_paths", [])
-        # A relative path would resolve against whichever dir the hook happens to run in.
-        if not isinstance(paths, list) or not all(
-            isinstance(p, str) and p.startswith(("/", "~")) for p in paths
-        ):
-            raise PolicyError(f"`{rule_id}.allowed_paths` must be a list of absolute or ~ paths")
+        for key in ("allowed_paths", "extra_protected_paths"):
+            paths = settings.get(key, [])
+            # A relative path would resolve against whichever dir the hook happens to run in.
+            if not isinstance(paths, list) or not all(
+                isinstance(p, str) and p.startswith(("/", "~")) and "\0" not in p for p in paths
+            ):
+                raise PolicyError(f"`{rule_id}.{key}` must be a list of absolute or ~ paths")
         normalized["rules"][rule_id] = settings
     canonical = json.dumps(normalized, sort_keys=True)
     return normalized, hashlib.sha256(canonical.encode()).hexdigest()[:12]

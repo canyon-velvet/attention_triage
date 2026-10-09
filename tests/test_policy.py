@@ -20,6 +20,7 @@ def test_a_missing_policy_is_created_with_the_defaults():  # and its data dir
     assert loaded["rules"] == {
         "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
         "sandbox_bypass": {"enabled": True, "severity": "high"},
+        "config_edit": {"enabled": True, "severity": "high", "extra_protected_paths": []},
     }
     assert version == policy.parse(policy.DEFAULT_POLICY)[1]
 
@@ -67,6 +68,8 @@ def test_version_changes_when_a_setting_changes():
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: ~/x}\n",  # not a list
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [1]}\n",
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [../shared]}\n",
+        "version: 1\nrules:\n  config_edit: {extra_protected_paths: [.zshrc]}\n",
+        'version: 1\nrules:\n  config_edit: {extra_protected_paths: ["/a\\0b"]}\n',  # a NUL
     ],
 )
 def test_an_invalid_policy_is_rejected(text):
