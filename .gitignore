@@ -15,5 +15,8 @@ scripts/record-payloads/errors.log
 .venv/
 __pycache__/
 
+# Web UI (web/)
+node_modules/
+
 # macOS
 .DS_Store
