@@ -111,6 +111,62 @@ def test_a_symlink_into_the_claude_dir_is_flagged(home, project):
     assert len(r3(write(project / "link" / "settings.json", project))) == 1
 
 
+def test_scripts_run_by_hooks_are_flagged(home, project):
+    hooks = {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": "~/bin/guard.sh --strict"}],
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {"type": "command", "command": "python3 $CLAUDE_PROJECT_DIR/scripts/stop.py"}
+                ]
+            }
+        ],
+    }
+    settings = home / ".claude" / "settings.json"
+    settings.write_text(json.dumps({"hooks": hooks}))
+    [flag] = r3(write(home / "bin" / "guard.sh", project))
+    assert flag["evidence"]["protected"] == f"hook script run by {settings}"
+    assert len(r3(write(project / "scripts" / "stop.py", project))) == 1
+    assert r3(write(home / "bin" / "other.sh", project)) == []
+
+
+def test_project_settings_hook_scripts_are_flagged(project):
+    hook = {"hooks": [{"type": "command", "command": '"./tools/my hook.sh"'}]}
+    settings = {"hooks": {"Stop": [hook]}}
+    (project / ".claude" / "settings.local.json").write_text(json.dumps(settings))
+    assert len(r3(write(project / "tools" / "my hook.sh", project))) == 1
+
+
+def test_env_vars_in_hook_commands_are_expanded(home, project):
+    hook = {"hooks": [{"type": "command", "command": "${HOME}/bin/guard.sh"}]}
+    (home / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"Stop": [hook]}}))
+    assert len(r3(write(home / "bin" / "guard.sh", project))) == 1
+
+
+@pytest.mark.parametrize(
+    "command", ['cd "$CLAUDE_PROJECT_DIR" && npm run lint', "jq -r .file_path | tr / _", "ls ~/"]
+)
+def test_dirs_named_in_hook_commands_are_not_protected(home, project, command):
+    hook = {"hooks": [{"type": "command", "command": command}]}
+    (home / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"Stop": [hook]}}))
+    assert r3(write(project / "src" / "x.py", project)) == []
+    assert r3(write(home / "notes.txt", project)) == []
+
+
+@pytest.mark.parametrize(
+    "text", ["{not json", '{"hooks": []}', '{"hooks": {"Stop": [{"hooks": [1]}]}}', "[]"]
+)
+def test_unreadable_settings_still_protect_themselves(home, project, text):
+    (home / ".claude" / "settings.json").write_text(text)
+    assert len(r3(write(home / ".claude" / "settings.json", project))) == 1
+    assert r3(write(project / "x.py", project)) == []
+
+
 def test_extra_protected_paths_with_a_tilde_are_flagged(home, project):
     extra = "version: 1\nrules:\n  config_edit: {extra_protected_paths: ['~/.zshrc']}\n"
     [flag] = r3(write(home / ".zshrc", project), extra)
