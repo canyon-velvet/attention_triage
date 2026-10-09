@@ -7,8 +7,9 @@ script builds), and a URL that is only text, like a link in a PR body, is flagge
 
 import re
 
-# Stops at quotes, shell operators and `,` (the host is all that matters, and a path rarely has one).
-URL = re.compile(r"https?://[^\s\"'`<>()|;&\\,]+", re.IGNORECASE)
+# An optional user name up to `@` (curl connects to the host after it, so `pypi.org,@evil` is evil),
+# then the rest up to a quote, shell operator or `,` (the host is all that matters).
+URL = re.compile(r"https?://(?:[^\s\"'`/@]*@)?[^\s\"'`<>()|;&\\,]+", re.IGNORECASE)
 
 
 def check(event: dict, settings: dict) -> dict | None:
