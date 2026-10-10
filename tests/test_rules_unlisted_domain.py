@@ -73,6 +73,10 @@ def test_a_bash_flag_is_partial_and_lists_each_unlisted_host_once():
         "https://raw.githubusercontent.com/a/b",
         "https://a.b.githubusercontent.com/x",
         "https://pypi.org/simple/",
+        "http://localhost:8765/api/health",  # this machine
+        "http://LOCALHOST/",
+        "http://127.0.0.1:8765/",
+        "http://[::1]:8000/",
     ],
 )
 def test_listed_hosts_are_allowed(url):
@@ -85,6 +89,9 @@ def test_listed_hosts_are_allowed(url):
         ("https://api.github.com/x", "api.github.com"),  # an exact entry doesn't cover subdomains
         ("https://githubusercontent.com/x", "githubusercontent.com"),  # `*.` needs a subdomain
         ("https://evilgithubusercontent.com/x", "evilgithubusercontent.com"),
+        ("http://localhost.evil.example/", "localhost.evil.example"),
+        ("http://127.0.0.1.evil.example/", "127.0.0.1.evil.example"),
+        ("http://localhost@evil.example/", "evil.example"),
         (
             "https://raw.githubusercontent.com.evil.example/x",
             "raw.githubusercontent.com.evil.example",
@@ -112,8 +119,8 @@ def test_an_empty_host_is_flagged():
 
 
 def test_a_malformed_url_is_flagged_not_skipped():
-    [flag] = r4(call("WebFetch", "http://[::1/x"))
-    assert flag["evidence"] == {"hosts": ["::1"]}
+    [flag] = r4(call("WebFetch", "http://[fe80::1/x"))
+    assert flag["evidence"] == {"hosts": ["fe80::1"]}
 
 
 @pytest.mark.parametrize(
