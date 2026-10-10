@@ -37,6 +37,9 @@ def retries(event: dict, failure: dict) -> bool:
     name = program(event["target"])
     return (
         failure["tool_name"] == "Bash"
+        # Unsandboxed, `Operation not permitted` is macOS refusing, not the sandbox. This also
+        # skips the bypass's own failure if its hook stamped it no later than the bypass.
+        and not failure["summary"].get("sandbox_disabled")
         and isinstance(error, str)
         and DENIAL.search(error) is not None
         and name is not None

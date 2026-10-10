@@ -75,6 +75,7 @@ def test_a_disabled_rule_flags_nothing(name):
 # retry-after-block (#12): the recorded sessions, stored in the order the events happened.
 BLOCKED = "auto-sandbox-block-filesystem/02-PostToolUseFailure.json"  # touch: not permitted
 RETRY = "auto-bypass-retry-after-block/01-PreToolUse.json"  # the same touch, sandbox disabled
+UNSANDBOXED = {"command": "touch ~/triage-spike-blocked.txt", "dangerouslyDisableSandbox": True}
 
 
 @pytest.fixture
@@ -140,6 +141,10 @@ def test_a_bypass_after_a_block_of_a_different_program_is_preemptive(conn):
         (-11, {}),  # more than 10 minutes before the retry
         (2, {}),  # after it
         (0, {"session_id": "another-session"}),
+        # A command already run unsandboxed: macOS refused it, not the sandbox. An earlier
+        # bypass, or the retry's own failure stamped in the same millisecond by a racing hook.
+        (0, {"tool_input": UNSANDBOXED}),
+        (1, {"tool_input": UNSANDBOXED, "tool_use_id": "toolu_016M25QG7qjyPJnAaiubdi56"}),
         (0, {"error": "Exit code 1\ntouch: /nope/x: No such file or directory"}),  # not the sandbox
         # Output that only mentions the denial text (here: printing SPEC.md), seen in real data.
         (
