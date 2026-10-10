@@ -126,6 +126,18 @@ def insert_event(conn: sqlite3.Connection, event: dict) -> bool:
     return cursor.rowcount == 1
 
 
+def earlier_events(conn: sqlite3.Connection, event: dict, event_type: str) -> list[dict]:
+    """Events of one type from the same session, captured no later than `event`, newest first."""
+    rows = conn.execute(
+        f"SELECT {', '.join(COLUMNS)} FROM events"
+        " WHERE session_id = ? AND event_type = ? AND ts <= ? AND dedup_key != ?"
+        " ORDER BY ts DESC",
+        [event["session_id"], event_type, event["ts"], event["dedup_key"]],
+    )
+    events = [dict(zip(COLUMNS, row, strict=True)) for row in rows]
+    return [{**e, "summary": json.loads(e["summary"])} for e in events]
+
+
 def insert_flags(conn: sqlite3.Connection, flags: list[dict]) -> None:
     """Store flags; one per event and rule, so a repeat is ignored."""
     conn.executemany(

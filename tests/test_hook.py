@@ -223,6 +223,16 @@ def test_session_start_deletes_events_older_than_the_retention_period(
 BYPASS = FIXTURES / "auto-bypass-preemptive" / "01-PreToolUse.json"
 
 
+BYPASS_RETRY = "auto-bypass-retry-after-block/01-PreToolUse.json"
+
+
+def test_the_hook_labels_a_retry_of_a_sandbox_blocked_command(tmp_path):
+    for name in ["auto-sandbox-block-filesystem/02-PostToolUseFailure.json", BYPASS_RETRY]:
+        assert run_hook(tmp_path, (FIXTURES / name).read_bytes()) == 0
+    [flag] = rows(tmp_path, "flags")
+    assert flag["label"] == "retry-after-block"
+
+
 def test_a_bypass_is_flagged_under_the_default_policy(tmp_path):
     assert run_hook(tmp_path, BYPASS.read_bytes()) == 0
     [event] = rows(tmp_path)

@@ -12,7 +12,7 @@ from attention_triage.rules.paths import written_path
 TEMP_DIRS = ["/tmp", "/private/tmp", "/var/folders"]
 
 
-def check(event: dict, settings: dict) -> dict | None:
+def check(event: dict, settings: dict, earlier) -> dict | None:
     if not (path := written_path(event)):
         return None
     if is_memory(path) or any(path.is_relative_to(root) for root in allowed_roots(event, settings)):
