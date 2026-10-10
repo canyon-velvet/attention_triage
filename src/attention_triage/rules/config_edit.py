@@ -16,7 +16,7 @@ from attention_triage.rules.paths import written_path
 SETTINGS_FILES = ["settings.json", "settings.local.json"]
 
 
-def check(event: dict, settings: dict) -> dict | None:
+def check(event: dict, settings: dict, earlier) -> dict | None:
     if not (path := written_path(event)):
         return None
     for protected, why in protected_paths(event["project_root"], settings):

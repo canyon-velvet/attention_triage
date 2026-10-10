@@ -1,11 +1,15 @@
 """Built-in rules (SPEC.md §5), run on each newly stored event at capture time (ADR-0003).
 
-Each rule module has `check(event, settings)`: the neutral event and the rule's settings from
-policy.yaml in, the flag's reason, label and evidence out, or None when the event is fine.
+Each rule module has `check(event, settings, earlier)`: the neutral event, the rule's settings from
+policy.yaml and `earlier(event_type)` in, the flag's reason, label and evidence out, or None when
+the event is fine. `earlier` lists the session's earlier events of a type, newest first; it reads
+the DB only when a rule calls it, and is empty without one.
 """
 
+import sqlite3
 from datetime import UTC, datetime
 
+from attention_triage import store
 from attention_triage.rules import (
     config_edit,
     outside_project_write,
@@ -21,13 +25,23 @@ RULES = {
 }
 
 
-def evaluate(event: dict, policy: dict, version: str, now: datetime | None = None) -> list[dict]:
+def evaluate(
+    event: dict,
+    policy: dict,
+    version: str,
+    conn: sqlite3.Connection | None = None,
+    now: datetime | None = None,
+) -> list[dict]:
     """Flag records for one event, one per enabled rule that fires."""
     ts = (now or datetime.now(UTC)).isoformat(timespec="milliseconds")
+
+    def earlier(event_type: str) -> list[dict]:
+        return store.earlier_events(conn, event, event_type) if conn else []
+
     flags = []
     for rule_id, check in RULES.items():
         settings = policy["rules"][rule_id]
-        if settings["enabled"] and (found := check(event, settings)):
+        if settings["enabled"] and (found := check(event, settings, earlier)):
             flags.append(
                 {
                     "event_key": event["dedup_key"],

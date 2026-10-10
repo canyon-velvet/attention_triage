@@ -45,7 +45,9 @@ def flag(conn, events: list[dict]) -> None:
         return
     try:
         loaded, version = policy.load()
-        store.insert_flags(conn, [f for e in events for f in rules.evaluate(e, loaded, version)])
+        store.insert_flags(
+            conn, [f for e in events for f in rules.evaluate(e, loaded, version, conn)]
+        )
     except Exception:
         log_error()
 

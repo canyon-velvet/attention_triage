@@ -12,7 +12,7 @@ import re
 URL = re.compile(r"https?://(?:[^\s\"'`/@]*@)?[^\s\"'`<>()|;&\\,]+", re.IGNORECASE)
 
 
-def check(event: dict, settings: dict) -> dict | None:
+def check(event: dict, settings: dict, earlier) -> dict | None:
     if event["event_type"] != "tool_call" or not event["target"]:
         return None
     if event["tool_name"] == "WebFetch":
