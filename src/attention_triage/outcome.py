@@ -6,6 +6,8 @@ import json
 import sqlite3
 from datetime import datetime
 
+from attention_triage.normalize import text
+
 
 def outcome(conn: sqlite3.Connection, event_key: str) -> dict:
     """{"kind", "error"} for the tool_call event stored as `event_key`. Kinds: ran (without a
@@ -25,7 +27,8 @@ def outcome(conn: sqlite3.Connection, event_key: str) -> dict:
     )
     prompted = was_prompted(conn, event_key, session_id, tool_name, raw)
     if "tool_failure" in results:
-        error = json.loads(results["tool_failure"]).get("error")
+        # A drifted payload's error may not be text (check_shape records it); the inbox gets none.
+        error = text(json.loads(results["tool_failure"]).get("error"))
         return {"kind": "approved_failed" if prompted else "failed", "error": error}
     if "tool_result" in results:
         return {"kind": "approved" if prompted else "ran", "error": None}

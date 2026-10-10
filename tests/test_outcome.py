@@ -68,6 +68,13 @@ def test_recorded_outcomes_in_any_arrival_order(conn, folder, kind, reverse):
         assert result["error"] is None
 
 
+def test_a_failure_whose_error_is_not_text_has_no_error(conn):
+    folder = "auto-sandbox-block-filesystem"
+    call = put(conn, payload(f"{folder}/01-PreToolUse.json"), 0)
+    put(conn, payload(f"{folder}/02-PostToolUseFailure.json", error={"message": "x"}), 1)
+    assert outcome(conn, call) == {"kind": "failed", "error": None}
+
+
 def test_a_call_with_no_result_yet_is_unknown(conn):
     call = put(conn, payload("auto-webfetch/01-PreToolUse.json"), 0)
     assert outcome(conn, call) == {"kind": "unknown", "error": None}
