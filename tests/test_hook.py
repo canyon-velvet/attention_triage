@@ -270,7 +270,7 @@ def test_a_spooled_bypass_is_flagged_when_ingested(tmp_path):
     db = make_db_unavailable(tmp_path)
     run_hook(tmp_path, BYPASS.read_bytes())
     db.rmdir()
-    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    run_hook(tmp_path, (FIXTURES / "auto-write-in-project" / "01-PreToolUse.json").read_bytes())
     [flag] = rows(tmp_path, "flags")
     assert flag["event_key"] == normalize(redact(json.loads(BYPASS.read_text())))["dedup_key"]
 
@@ -281,7 +281,7 @@ def test_a_spooled_event_stored_by_a_failed_run_still_gets_its_flag(tmp_path, mo
     with closing(store.connect()) as conn:
         store.insert_event(conn, event)  # stored, then the run failed and spooled it
     store.spool(event)
-    run_hook(tmp_path, (FIXTURES / "auto-webfetch" / "01-PreToolUse.json").read_bytes())
+    run_hook(tmp_path, (FIXTURES / "auto-write-in-project" / "01-PreToolUse.json").read_bytes())
     [flag] = rows(tmp_path, "flags")
     assert flag["event_key"] == event["dedup_key"]
 

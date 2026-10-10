@@ -21,6 +21,19 @@ def test_a_missing_policy_is_created_with_the_defaults():  # and its data dir
         "outside_project_write": {"enabled": True, "severity": "high", "allowed_paths": []},
         "sandbox_bypass": {"enabled": True, "severity": "high"},
         "config_edit": {"enabled": True, "severity": "high", "extra_protected_paths": []},
+        "unlisted_domain": {
+            "enabled": True,
+            "severity": "review",
+            "allowed_domains": [
+                "github.com",
+                "*.githubusercontent.com",
+                "pypi.org",
+                "files.pythonhosted.org",
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            ],
+        },
     }
     assert version == policy.parse(policy.DEFAULT_POLICY)[1]
 
@@ -70,6 +83,10 @@ def test_version_changes_when_a_setting_changes():
         "version: 1\nrules:\n  outside_project_write: {allowed_paths: [../shared]}\n",
         "version: 1\nrules:\n  config_edit: {extra_protected_paths: [.zshrc]}\n",
         'version: 1\nrules:\n  config_edit: {extra_protected_paths: ["/a\\0b"]}\n',  # a NUL
+        "version: 1\nrules:\n  unlisted_domain: {allowed_domains: github.com}\n",  # not a list
+        "version: 1\nrules:\n  unlisted_domain: {allowed_domains: [1]}\n",
+        "version: 1\nrules:\n  unlisted_domain: {allowed_domains: ['*github.com']}\n",
+        "version: 1\nrules:\n  unlisted_domain: {allowed_domains: ['api.*.example']}\n",
     ],
 )
 def test_an_invalid_policy_is_rejected(text):

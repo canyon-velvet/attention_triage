@@ -6,12 +6,18 @@ policy.yaml in, the flag's reason, label and evidence out, or None when the even
 
 from datetime import UTC, datetime
 
-from attention_triage.rules import config_edit, outside_project_write, sandbox_bypass
+from attention_triage.rules import (
+    config_edit,
+    outside_project_write,
+    sandbox_bypass,
+    unlisted_domain,
+)
 
 RULES = {
     "outside_project_write": outside_project_write.check,
     "sandbox_bypass": sandbox_bypass.check,
     "config_edit": config_edit.check,
+    "unlisted_domain": unlisted_domain.check,
 }
 
 
