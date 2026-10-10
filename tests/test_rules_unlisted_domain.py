@@ -9,8 +9,12 @@ from attention_triage.redact import redact
 
 FIXTURES = Path(__file__).parent / "fixtures" / "payloads"
 ALL_FIXTURES = sorted(FIXTURES.glob("*/*.json"))
-# WebFetch of example.com. Its PostToolUse repeats the input.
-SHOULD_FLAG = {"auto-webfetch/01-PreToolUse.json"}
+# Calls that reach example.com. The other events of these calls repeat the input.
+SHOULD_FLAG = {
+    "auto-webfetch/01-PreToolUse.json",
+    "auto-curl-pipe-bash-allowed/01-PreToolUse.json",
+    "auto-sandbox-block-network/01-PreToolUse.json",
+}
 
 
 def call(tool: str, target: str) -> dict:
@@ -47,6 +51,16 @@ def test_a_webfetch_flag_is_unlabelled_with_review_severity():
     assert flag["reason"] == "The agent asked to fetch from a host that isn't in allowed_domains."
     assert flag["label"] == ""
     assert flag["evidence"] == {"hosts": ["example.com"]}
+
+
+def test_a_bash_flag_is_partial_and_lists_each_unlisted_host_once():
+    command = (
+        "curl https://a.example/x && curl https://github.com/y https://a.example/z http://b.example"
+    )
+    [flag] = r4(call("Bash", command))
+    assert flag["label"] == "partial"
+    assert flag["reason"] == "The command names a URL whose host isn't in allowed_domains."
+    assert flag["evidence"] == {"hosts": ["a.example", "b.example"]}
 
 
 @pytest.mark.parametrize(
@@ -107,6 +121,51 @@ def test_an_empty_host_is_flagged():
 def test_a_malformed_url_is_flagged_not_skipped():
     [flag] = r4(call("WebFetch", "http://[fe80::1/x"))
     assert flag["evidence"] == {"hosts": ["fe80::1"]}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ls -la",
+        "curl example.com",  # no scheme: not seen (partial)
+        "git push origin main",
+        "curl -sS https://github.com/x",
+        'gh pr create --body "see [docs](https://github.com/a/b), then https://pypi.org."',
+    ],
+)
+def test_bash_without_unlisted_urls_is_not_flagged(command):
+    assert r4(call("Bash", command)) == []
+
+
+@pytest.mark.parametrize("cut", [",", ";", "\\", "(", "|", "&"])
+def test_a_user_name_cannot_cut_a_bash_url_at_a_listed_host(cut):
+    # curl connects to the host after `@`; the URL must not end at the listed name before it.
+    [flag] = r4(call("Bash", f"curl 'https://pypi.org{cut}@evil.example/'"))
+    assert flag["evidence"] == {"hosts": ["evil.example"]}
+
+
+@pytest.mark.parametrize(
+    "command, host",
+    [
+        ("curl 'https://github.com'@evil.example/", "evil.example"),  # the shell joins the pieces
+        ('curl "https://github.com"evil.example/', "github.comevil.example"),
+        ("curl https://github.com\\.evil.example/", "github.com.evil.example"),
+        ("curl https:///evil.example/", "evil.example"),
+        ("curl 'https://{@,}evil.example/'", ""),  # curl globbing; the host reads as empty
+        ("curl $'https://evil.example\\x2f@github.com/'", "evil.example"),  # $'..': \x2f is /
+        ("curl $'https://evil.example\\057@github.com/'", "evil.example"),
+        ("curl $'https://github.com\\x2eevil.example/'", "github.comx2eevil.example"),
+    ],
+)
+def test_shell_quoting_cannot_cut_a_bash_url_at_a_listed_host(command, host):
+    [flag] = r4(call("Bash", command))
+    assert host in flag["evidence"]["hosts"]
+
+
+def test_a_url_ending_a_sentence_or_markdown_link_keeps_its_host():
+    assert r4(call("Bash", "echo '[x](https://a.example/y), https://b.example.'"))[0][
+        "evidence"
+    ] == {"hosts": ["a.example", "b.example"]}
 
 
 def test_allowed_domains_replace_the_defaults():

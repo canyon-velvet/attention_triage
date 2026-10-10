@@ -1,26 +1,37 @@
 """R4 `unlisted_domain`: the agent reached a host that isn't in allowed_domains (SPEC.md §5).
 
-WebFetch names its URL, so it is checked reliably.
+WebFetch names its URL, so it is checked reliably. Bash is best-effort, labelled `partial`: only
+`http(s)://` URLs written in the command are seen (not `curl example.com`, `git@host:`, or a URL a
+script builds), and a URL that is only text, like a link in a PR body, is flagged too.
 """
 
 import re
 
+# An optional user name up to `@` (curl connects to the host after it, so `pypi.org,@evil` is evil),
+# then the rest up to a quote, shell operator or `,` (the host is all that matters).
+URL = re.compile(r"https?://(?:[^\s\"'`/@]*@)?[^\s\"'`<>()|;&\\,]+", re.IGNORECASE)
+
 
 def check(event: dict, settings: dict) -> dict | None:
-    if (
-        event["event_type"] != "tool_call"
-        or event["tool_name"] != "WebFetch"
-        or not event["target"]
-    ):
+    if event["event_type"] != "tool_call" or not event["target"]:
         return None
-    unlisted = [h for h in hosts(event["target"]) if not allowed(h, settings["allowed_domains"])]
-    if not unlisted:
+    if event["tool_name"] == "WebFetch":
+        urls, label = [event["target"]], ""
+        reason = "The agent asked to fetch from a host that isn't in allowed_domains."
+    elif event["tool_name"] == "Bash":
+        # The shell joins `'https://github.com'@evil` into one word, so read the command also with
+        # quotes and `\` dropped. Keep the as-written reading too: in `$'evil\x2f@github.com'` the
+        # `\` is a `/`. Shell quoting can't be undone exactly; a host unlisted in either is flagged.
+        command = event["target"]
+        readings = [command, re.sub(r"[\"'\\]", "", command)]
+        urls, label = [url for text in readings for url in URL.findall(text)], "partial"
+        reason = "The command names a URL whose host isn't in allowed_domains."
+    else:
         return None
-    return {
-        "reason": "The agent asked to fetch from a host that isn't in allowed_domains.",
-        "label": "",
-        "evidence": {"hosts": unlisted},
-    }
+    found = [h for url in urls for h in hosts(url) if not allowed(h, settings["allowed_domains"])]
+    if not found:
+        return None
+    return {"reason": reason, "label": label, "evidence": {"hosts": list(dict.fromkeys(found))}}
 
 
 def hosts(url: str) -> list[str]:
