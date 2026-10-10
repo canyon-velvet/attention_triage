@@ -27,6 +27,9 @@ DEFAULT_RULES = {
             "*.githubusercontent.com",
             "pypi.org",
             "files.pythonhosted.org",
+            "localhost",
+            "127.0.0.1",
+            "::1",
         ],
     },
 }
@@ -51,7 +54,10 @@ rules:
     enabled: true
     severity: review
     # Hosts the agent may reach. `*.example.com` covers subdomains of example.com, not itself.
-    allowed_domains: [github.com, "*.githubusercontent.com", pypi.org, files.pythonhosted.org]
+    # localhost, 127.0.0.1 and ::1 are this machine.
+    allowed_domains:
+      [github.com, "*.githubusercontent.com", pypi.org, files.pythonhosted.org,
+       localhost, 127.0.0.1, "::1"]
 """
 
 

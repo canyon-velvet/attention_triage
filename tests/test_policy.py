@@ -29,6 +29,9 @@ def test_a_missing_policy_is_created_with_the_defaults():  # and its data dir
                 "*.githubusercontent.com",
                 "pypi.org",
                 "files.pythonhosted.org",
+                "localhost",
+                "127.0.0.1",
+                "::1",
             ],
         },
     }
